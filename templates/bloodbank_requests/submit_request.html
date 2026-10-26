@@ -1,0 +1,28 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Submit Blood Request</title>
+</head>
+<body>
+    <h1>Submit Blood Request</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Submit Request</button>
+    </form>
+
+    <p>
+        <a href="{% url 'my_requests' %}">View My Requests</a>
+    </p>
+    <p><a href="/">Home</a></p>
+</body>
+</html>

@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "accounts",
     "donors",
     "donations",
+    "bloodbank_requests",
 ]
 
 MIDDLEWARE = [

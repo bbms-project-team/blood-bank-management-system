@@ -1,0 +1,56 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blood Requests</title>
+</head>
+<body>
+    <h1>Blood Requests</h1>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    {% if user.role == "REQUESTER" %}
+        <p><a href="{% url 'submit_request' %}">Submit New Request</a></p>
+    {% endif %}
+
+    {% for item in requests %}
+        <hr>
+        <p><strong>Request ID:</strong> {{ item.request_id }}</p>
+        <p><strong>Patient:</strong> {{ item.patient_name }}</p>
+        <p><strong>Hospital:</strong> {{ item.hospital_name }}</p>
+        <p><strong>Blood group:</strong> {{ item.blood_group }}</p>
+        <p><strong>Component:</strong> {{ item.component }}</p>
+        <p><strong>Units required:</strong> {{ item.units_required }}</p>
+        <p><strong>Status:</strong> {{ item.get_status_display }}</p>
+        <p><strong>Submitted:</strong> {{ item.created_at }}</p>
+
+        {% if item.decision_by %}
+            <p><strong>Decision by:</strong> {{ item.decision_by.username }}</p>
+            <p><strong>Decision time:</strong> {{ item.decision_at }}</p>
+        {% endif %}
+
+        {% if user.role == "STAFF" or user.role == "ADMIN" %}
+            {% if item.status == "PENDING" %}
+                <form method="post" action="{% url 'decide_request' item.request_id %}">
+                    {% csrf_token %}
+                    <button type="submit" name="decision" value="APPROVED">
+                        Approve
+                    </button>
+                    <button type="submit" name="decision" value="REJECTED">
+                        Reject
+                    </button>
+                </form>
+            {% endif %}
+        {% endif %}
+    {% empty %}
+        <p>No blood requests found.</p>
+    {% endfor %}
+
+    <p><a href="/">Home</a></p>
+</body>
+</html>

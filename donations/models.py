@@ -20,7 +20,10 @@ class Donation(models.Model):
     )
     donation_date = models.DateField()
     blood_group = models.CharField(max_length=3)
-    component = models.CharField(max_length=20, choices=COMPONENTS)
+    component = models.CharField(
+        max_length=20,
+        choices=COMPONENTS,
+    )
     volume_ml = models.PositiveIntegerField(default=450)
     accepted = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -42,8 +45,16 @@ class BloodUnit(models.Model):
         on_delete=models.PROTECT,
         related_name="blood_unit",
     )
-    unit_code = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    unit_code = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+    )
     expiry_date = models.DateField()
+    location = models.CharField(
+        max_length=150,
+        default="Main Blood Bank",
+    )
     status = models.CharField(
         max_length=10,
         choices=STATUS_CHOICES,

@@ -9,4 +9,5 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("donors/", include("donors.urls")),
     path("donations/", include("donations.urls")),
+    path("blood-requests/", include("bloodbank_requests.urls")),
 ]

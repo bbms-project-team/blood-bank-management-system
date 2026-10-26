@@ -14,12 +14,53 @@
     <p>Issued: {{ counts.issued }}</p>
     <p>Past expiry date: {{ counts.expired }}</p>
 
+    <h2>Search Available Blood</h2>
+
+    <form method="get">
+        <label for="blood_group">Blood group:</label>
+        <select name="blood_group" id="blood_group">
+            <option value="">All groups</option>
+            {% for value, label in blood_groups %}
+                <option value="{{ value }}"
+                    {% if selected_blood_group == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="component">Component:</label>
+        <select name="component" id="component">
+            <option value="">All components</option>
+            {% for value, label in components %}
+                <option value="{{ value }}"
+                    {% if selected_component == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label for="location">Location:</label>
+        <input
+            type="text"
+            name="location"
+            id="location"
+            value="{{ selected_location }}"
+            placeholder="Enter blood bank location"
+        >
+
+        <button type="submit">Search</button>
+        <a href="{% url 'inventory' %}">Clear filters</a>
+    </form>
+
+    <h2>Available Matching Units</h2>
+
     <table border="1" cellpadding="6">
         <thead>
             <tr>
                 <th>Unit Code</th>
                 <th>Blood Group</th>
                 <th>Component</th>
+                <th>Location</th>
                 <th>Donation Date</th>
                 <th>Expiry Date</th>
                 <th>Status</th>
@@ -31,12 +72,15 @@
                     <td>{{ unit.unit_code }}</td>
                     <td>{{ unit.donation.blood_group }}</td>
                     <td>{{ unit.donation.get_component_display }}</td>
+                    <td>{{ unit.location }}</td>
                     <td>{{ unit.donation.donation_date }}</td>
                     <td>{{ unit.expiry_date }}</td>
                     <td>{{ unit.get_status_display }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="6">No inventory units yet.</td></tr>
+                <tr>
+                    <td colspan="7">No available matching units found.</td>
+                </tr>
             {% endfor %}
         </tbody>
     </table>
