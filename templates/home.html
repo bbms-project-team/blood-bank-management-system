@@ -1,0 +1,39 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BBMS</title>
+</head>
+<body>
+    <h1>Blood Bank Management System</h1>
+
+    {% if messages %}
+        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+    {% endif %}
+
+    {% if user.is_authenticated %}
+        <p>Welcome, {{ user.username }}!</p>
+        <p>Role: {{ user.get_role_display }}</p>
+
+        {% if user.role == "DONOR" %}
+            <p><a href="{% url 'my_profile' %}">My Donor Profile</a></p>
+        {% endif %}
+
+        {% if user.role == "STAFF" or user.role == "ADMIN" %}
+            <p><a href="{% url 'donor_list' %}">View Donors</a></p>
+            <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
+            <p><a href="{% url 'inventory' %}">View Blood Inventory</a></p>
+        {% endif %}
+
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">Logout</button>
+        </form>
+    {% else %}
+        <p><a href="{% url 'register' %}">Register</a></p>
+        <p><a href="{% url 'login' %}">Login</a></p>
+    {% endif %}
+</body>
+</html>

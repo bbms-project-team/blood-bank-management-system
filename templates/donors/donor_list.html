@@ -1,0 +1,24 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Donors | BBMS</title>
+</head>
+<body>
+    <h1>Donor Profiles</h1>
+
+    {% for profile in profiles %}
+        <section>
+            <h3>{{ profile.user.get_full_name|default:profile.user.username }}</h3>
+            <p>Blood group: {{ profile.blood_group }}</p>
+            <p>Phone: {{ profile.phone }}</p>
+        </section>
+    {% empty %}
+        <p>No donor profiles have been created yet.</p>
+    {% endfor %}
+
+    <p><a href="{% url 'home' %}">Home</a></p>
+</body>
+</html>

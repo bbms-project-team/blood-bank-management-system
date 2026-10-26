@@ -1,0 +1,47 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Blood Inventory | BBMS</title>
+</head>
+<body>
+    <h1>Blood Inventory</h1>
+
+    <p>Available: {{ counts.available }}</p>
+    <p>Reserved: {{ counts.reserved }}</p>
+    <p>Issued: {{ counts.issued }}</p>
+    <p>Past expiry date: {{ counts.expired }}</p>
+
+    <table border="1" cellpadding="6">
+        <thead>
+            <tr>
+                <th>Unit Code</th>
+                <th>Blood Group</th>
+                <th>Component</th>
+                <th>Donation Date</th>
+                <th>Expiry Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for unit in units %}
+                <tr>
+                    <td>{{ unit.unit_code }}</td>
+                    <td>{{ unit.donation.blood_group }}</td>
+                    <td>{{ unit.donation.get_component_display }}</td>
+                    <td>{{ unit.donation.donation_date }}</td>
+                    <td>{{ unit.expiry_date }}</td>
+                    <td>{{ unit.get_status_display }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6">No inventory units yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
+    <p><a href="{% url 'home' %}">Home</a></p>
+</body>
+</html>
