@@ -1,8 +1,10 @@
 
 from datetime import date
+from datetime import timedelta
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from accounts.models import User
 from donors.models import DonorProfile
@@ -100,6 +102,15 @@ class DonorProfileTests(TestCase):
         self.assertFalse(
             DonorProfile.objects.filter(user=self.donor_user).exists()
         )
+
+    def test_donor_profile_rejects_future_dates(self):
+        self.client.force_login(self.donor_user)
+        invalid_data = self.profile_data.copy()
+        invalid_data["date_of_birth"] = (timezone.localdate() + timedelta(days=1)).isoformat()
+        invalid_data["last_donation_date"] = (timezone.localdate() + timedelta(days=1)).isoformat()
+        response = self.client.post(reverse("my_profile"), invalid_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(DonorProfile.objects.filter(user=self.donor_user).exists())
 
     def test_non_donor_cannot_access_donor_profile(self):
         self.client.force_login(self.staff)

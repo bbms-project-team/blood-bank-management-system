@@ -25,6 +25,19 @@
             <p><a href="{% url 'donor_list' %}">View Donors</a></p>
             <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
             <p><a href="{% url 'inventory' %}">View Blood Inventory</a></p>
+            <p><a href="{% url 'my_requests' %}">Review Blood Requests</a></p>
+            <p><a href="{% url 'alerts' %}">Inventory Alerts</a></p>
+            <p><a href="{% url 'reports' %}">Reports</a></p>
+        {% endif %}
+
+        {% if user.role == "ADMIN" %}
+            <p><a href="{% url 'audit_log' %}">Audit Log</a></p>
+        {% endif %}
+
+        {% if user.role == "REQUESTER" %}
+            <p><a href="{% url 'inventory' %}">Search Blood Availability</a></p>
+            <p><a href="{% url 'submit_request' %}">Submit Blood Request</a></p>
+            <p><a href="{% url 'my_requests' %}">My Requests</a></p>
         {% endif %}
 
         <form method="post" action="{% url 'logout' %}">

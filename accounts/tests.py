@@ -46,6 +46,13 @@ class AccountsTests(TestCase):
             response.wsgi_request.user.is_authenticated
         )
 
+    def test_registration_cannot_assign_privileged_role(self):
+        data = self.user_data.copy()
+        data["role"] = User.Role.ADMIN
+        self.client.post(reverse("register"), data)
+        registered_user = User.objects.get(username="testuser")
+        self.assertEqual(registered_user.role, User.Role.DONOR)
+
     def test_registration_rejects_duplicate_email(self):
         duplicate_email_data = self.user_data.copy()
         duplicate_email_data["email"] = "EXISTING@example.com"
@@ -121,3 +128,8 @@ class AccountsTests(TestCase):
 
         self.assertRedirects(response, reverse("home"))
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_session_timeout_is_configured(self):
+        from django.conf import settings
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 15 * 60)
+        self.assertTrue(settings.SESSION_EXPIRE_AT_BROWSER_CLOSE)

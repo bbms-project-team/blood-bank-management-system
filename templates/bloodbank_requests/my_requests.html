@@ -16,6 +16,9 @@
 
     {% if user.role == "REQUESTER" %}
         <p><a href="{% url 'submit_request' %}">Submit New Request</a></p>
+        {% for notification in notifications %}
+            <p role="status">{{ notification.message }} ({{ notification.created_at }})</p>
+        {% endfor %}
     {% endif %}
 
     {% for item in requests %}
@@ -44,6 +47,18 @@
                     <button type="submit" name="decision" value="REJECTED">
                         Reject
                     </button>
+                </form>
+            {% endif %}
+            {% if item.status == "APPROVED" %}
+                <form method="post" action="{% url 'reserve_request' item.request_id %}">
+                    {% csrf_token %}
+                    <button type="submit">Reserve matching units</button>
+                </form>
+            {% endif %}
+            {% if item.status == "RESERVED" %}
+                <form method="post" action="{% url 'issue_request' item.request_id %}">
+                    {% csrf_token %}
+                    <button type="submit">Issue / dispatch reserved units</button>
                 </form>
             {% endif %}
         {% endif %}

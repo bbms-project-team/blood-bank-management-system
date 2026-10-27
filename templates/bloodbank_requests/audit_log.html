@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>BBMS Audit Log</title></head>
+<body>
+    <h1>Recent Audit Events</h1>
+    {% for event in events %}
+        <article>
+            <p>{{ event.created_at }} — {{ event.action }} — {{ event.object_type }} {{ event.object_id }}</p>
+            <p>Actor: {{ event.actor.username|default:"System" }}</p>
+            {% if event.details %}<p>Details: {{ event.details }}</p>{% endif %}
+        </article>
+    {% empty %}<p>No audit events recorded.</p>{% endfor %}
+    <p><a href="{% url 'home' %}">Home</a></p>
+</body>
+</html>

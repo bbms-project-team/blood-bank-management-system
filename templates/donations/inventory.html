@@ -85,7 +85,14 @@
         </tbody>
     </table>
 
-    <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
+    {% if user.role == "STAFF" or user.role == "ADMIN" %}
+        <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
+        <p><a href="{% url 'alerts' %}">Inventory alerts</a></p>
+        <p><a href="{% url 'reports' %}">Reports</a></p>
+    {% endif %}
+    {% if user.role == "REQUESTER" %}
+        <p><a href="{% url 'submit_request' %}">Submit blood request</a></p>
+    {% endif %}
     <p><a href="{% url 'home' %}">Home</a></p>
 </body>
 </html>

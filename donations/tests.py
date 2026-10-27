@@ -8,6 +8,7 @@ from django.utils import timezone
 from accounts.models import User
 from donors.models import DonorProfile
 from donations.models import Donation, BloodUnit
+from bloodbank_requests.models import BloodRequest
 
 
 class DonationAndInventoryTests(TestCase):
@@ -32,6 +33,12 @@ class DonationAndInventoryTests(TestCase):
             date_of_birth=date(1995, 5, 15),
             address="Bengaluru",
             blood_group="A+",
+        )
+        self.requester = User.objects.create_user(
+            username="hospital_user",
+            email="hospital@example.com",
+            password="TestPass123!",
+            role=User.Role.REQUESTER,
         )
 
         self.donation_date = timezone.localdate() - timedelta(days=1)
@@ -64,11 +71,35 @@ class DonationAndInventoryTests(TestCase):
         if expiry_date is None:
             expiry_date = timezone.localdate() + timedelta(days=20)
 
+        request = None
+        issued_at = None
+        issued_by = None
+        if status in {"RESERVED", "ISSUED"}:
+            request = BloodRequest.objects.create(
+                requester=self.requester,
+                patient_name="Test Patient",
+                hospital_name="Test Hospital",
+                blood_group=blood_group,
+                component=component,
+                units_required=1,
+                reason="Test fixture",
+                status=BloodRequest.Status.RESERVED,
+            )
+        if status == "ISSUED":
+            issued_at = timezone.now()
+            issued_by = self.staff
+            request.status = BloodRequest.Status.ISSUED
+            request.save(update_fields=["status"])
+
         unit = BloodUnit.objects.create(
             donation=donation,
             expiry_date=expiry_date,
             location=location,
             status=status,
+            reserved_for=request,
+            reserved_at=timezone.now() if request else None,
+            issued_at=issued_at,
+            issued_by=issued_by,
         )
 
         return unit
@@ -217,4 +248,11 @@ class DonationAndInventoryTests(TestCase):
         response = self.client.get(reverse("inventory"))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_requester_can_search_availability(self):
+        self.create_inventory_unit()
+        self.client.force_login(self.requester)
+        response = self.client.get(reverse("inventory"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["units"]), 1)
 

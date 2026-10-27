@@ -10,6 +10,7 @@ from accounts.decorators import role_required
 from accounts.models import User
 from .forms import DonationForm
 from .models import Donation, BloodUnit
+from bloodbank_requests.audit import record_audit
 
 
 @role_required(User.Role.STAFF, User.Role.ADMIN)
@@ -33,6 +34,13 @@ def record_donation(request):
                 donor = donation.donor
                 donor.last_donation_date = donation.donation_date
                 donor.save(update_fields=["last_donation_date"])
+                record_audit(
+                    request.user,
+                    "DONATION_RECORDED",
+                    "Donation",
+                    donation.pk,
+                    {"blood_group": donation.blood_group, "component": donation.component},
+                )
 
             messages.success(
                 request,
@@ -45,7 +53,7 @@ def record_donation(request):
     return render(request, "donations/record.html", {"form": form})
 
 
-@role_required(User.Role.STAFF, User.Role.ADMIN)
+@role_required(User.Role.REQUESTER, User.Role.STAFF, User.Role.ADMIN)
 def inventory(request):
     today = timezone.localdate()
 

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>BBMS Reports</title></head>
+<body>
+    <h1>Inventory and Request Summary</h1>
+    <p>Accepted donations recorded: {{ donation_count }}</p>
+    <p>Available unexpired units: {{ available_units }}</p>
+    <h2>Units by status</h2>
+    {% for item in units_by_status %}<p>{{ item.status }}: {{ item.total }}</p>{% empty %}<p>No inventory records.</p>{% endfor %}
+    <h2>Requests by status</h2>
+    {% for item in requests_by_status %}<p>{{ item.status }}: {{ item.total }}</p>{% empty %}<p>No requests.</p>{% endfor %}
+    <p><a href="{% url 'home' %}">Home</a></p>
+</body>
+</html>
