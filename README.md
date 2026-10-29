@@ -23,3 +23,15 @@ Open http://127.0.0.1:8000/ in your browser.
 - Role-based access
 - Donor and donation management
 - Blood inventory and blood requests
+
+## Running Automated Tests
+
+Activate the project's virtual environment before running these commands.
+
+- Check Django configuration: `python manage.py check`
+- Run automated tests: `python manage.py test`
+
+The system check validates the Django configuration, while the test command runs the project's automated test suite.
+
+Run these checks before submitting changes for review.
+
