@@ -1,20 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Inventory Alerts</title></head>
-<body>
-    <h1>Inventory Alerts</h1>
-    <p>Low stock threshold: fewer than {{ threshold }} available, unexpired units per blood group and component.</p>
-    <h2>Low stock</h2>
-    {% for item in stock_alerts %}
-        <p>{{ item.donation__blood_group }} {{ item.donation__component }}: {{ item.units }} units</p>
-    {% empty %}<p>No low-stock alerts.</p>{% endfor %}
-    <h2>Expired units that remain available or reserved</h2>
-    {% for unit in expired_units %}<p>{{ unit.unit_code }} — {{ unit.donation.blood_group }} — expired {{ unit.expiry_date }}</p>
-    {% empty %}<p>No expired available or reserved units.</p>{% endfor %}
-    <h2>Units expiring within 7 days</h2>
-    {% for unit in expiring_units %}<p>{{ unit.unit_code }} — {{ unit.donation.blood_group }} — expires {{ unit.expiry_date }}</p>
-    {% empty %}<p>No units expiring soon.</p>{% endfor %}
-    <p>Request status changes are shown to requesters in their request list.</p>
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Inventory alerts | BBMS{% endblock %}
+
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Stock attention</p>
+        <h1>Inventory alerts</h1>
+        <p>Review low stock and units that are nearing or past their recorded expiry date.</p>
+    </div>
+
+    <div class="alert-grid">
+        <section class="panel alert-panel">
+            <div class="panel-heading"><h2><span class="alert-dot" aria-hidden="true"></span>Low stock</h2><p>Fewer than {{ threshold }} available, unexpired units for a blood group and component.</p></div>
+            {% if stock_alerts %}
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Group</th><th>Component</th><th>Available</th></tr></thead>
+                    <tbody>{% for item in stock_alerts %}<tr><td>{{ item.donation__blood_group }}</td><td>{{ item.donation__component }}</td><td>{{ item.units }}</td></tr>{% endfor %}</tbody>
+                </table></div>
+            {% else %}<div class="empty-state">Stock levels are above the alert threshold.</div>{% endif %}
+        </section>
+
+        <section class="panel alert-panel">
+            <div class="panel-heading"><h2><span class="alert-dot alert-dot-red" aria-hidden="true"></span>Past expiry</h2><p>Available or reserved units with an expiry date before today.</p></div>
+            {% if expired_units %}
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Unit</th><th>Group</th><th>Expired</th></tr></thead>
+                    <tbody>{% for unit in expired_units %}<tr><td><code>{{ unit.unit_code }}</code></td><td>{{ unit.donation.blood_group }}</td><td>{{ unit.expiry_date|date:"M j, Y" }}</td></tr>{% endfor %}</tbody>
+                </table></div>
+            {% else %}<div class="empty-state">No expired available or reserved units.</div>{% endif %}
+        </section>
+
+        <section class="panel alert-panel">
+            <div class="panel-heading"><h2><span class="alert-dot" aria-hidden="true"></span>Expiring soon</h2><p>Available or reserved units expiring within seven days.</p></div>
+            {% if expiring_units %}
+                <div class="table-wrap"><table>
+                    <thead><tr><th>Unit</th><th>Group</th><th>Expiry</th></tr></thead>
+                    <tbody>{% for unit in expiring_units %}<tr><td><code>{{ unit.unit_code }}</code></td><td>{{ unit.donation.blood_group }}</td><td>{{ unit.expiry_date|date:"M j, Y" }}</td></tr>{% endfor %}</tbody>
+                </table></div>
+            {% else %}<div class="empty-state">No units are due to expire within seven days.</div>{% endif %}
+        </section>
+
+        <section class="panel alert-panel">
+            <div class="panel-heading"><h2>Request updates</h2><p>Requesters see their latest status messages in their request list.</p></div>
+            <a class="button button-secondary" href="{% url 'my_requests' %}">Review requests</a>
+        </section>
+    </div>
+{% endblock %}

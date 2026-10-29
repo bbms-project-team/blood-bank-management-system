@@ -1,5 +1,6 @@
 
 from django import forms
+from django.utils import timezone
 from .models import Donation
 
 
@@ -22,6 +23,12 @@ class DonationForm(forms.ModelForm):
         if volume <= 0:
             raise forms.ValidationError("Volume must be greater than zero.")
         return volume
+
+    def clean_donation_date(self):
+        donation_date = self.cleaned_data["donation_date"]
+        if donation_date > timezone.localdate():
+            raise forms.ValidationError("Donation date cannot be in the future.")
+        return donation_date
 
     def clean(self):
         cleaned_data = super().clean()

@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from accounts.decorators import role_required
 from accounts.models import User
+from donors.models import DonorProfile
 from .forms import DonationForm
 from .models import Donation, BloodUnit
 from bloodbank_requests.audit import record_audit
@@ -67,6 +68,7 @@ def inventory(request):
         "available": all_units.filter(
             status="AVAILABLE",
             expiry_date__gte=today,
+            donation__accepted=True,
         ).count(),
         "reserved": all_units.filter(status="RESERVED").count(),
         "issued": all_units.filter(status="ISSUED").count(),
@@ -116,13 +118,4 @@ def inventory(request):
 
 
 def DonorBloodGroups():
-    return [
-        ("A+", "A+"),
-        ("A-", "A-"),
-        ("B+", "B+"),
-        ("B-", "B-"),
-        ("AB+", "AB+"),
-        ("AB-", "AB-"),
-        ("O+", "O+"),
-        ("O-", "O-"),
-    ]
+    return DonorProfile.BLOOD_GROUPS

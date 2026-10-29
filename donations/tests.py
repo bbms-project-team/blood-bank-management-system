@@ -153,6 +153,17 @@ class DonationAndInventoryTests(TestCase):
         self.assertEqual(Donation.objects.count(), 0)
         self.assertEqual(BloodUnit.objects.count(), 0)
 
+    def test_future_donation_date_is_rejected(self):
+        self.client.force_login(self.staff)
+        invalid_data = self.donation_data.copy()
+        invalid_data["donation_date"] = (
+            timezone.localdate() + timedelta(days=1)
+        ).isoformat()
+        response = self.client.post(reverse("record_donation"), invalid_data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Donation.objects.count(), 0)
+        self.assertEqual(BloodUnit.objects.count(), 0)
+
     def test_donor_cannot_record_donation(self):
         self.client.force_login(self.donor_user)
 

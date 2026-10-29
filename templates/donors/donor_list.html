@@ -1,24 +1,29 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Donors | BBMS</title>
-</head>
-<body>
-    <h1>Donor Profiles</h1>
+{% block title %}Donor directory | BBMS{% endblock %}
 
-    {% for profile in profiles %}
-        <section>
-            <h3>{{ profile.user.get_full_name|default:profile.user.username }}</h3>
-            <p>Blood group: {{ profile.blood_group }}</p>
-            <p>Phone: {{ profile.phone }}</p>
-        </section>
-    {% empty %}
-        <p>No donor profiles have been created yet.</p>
-    {% endfor %}
-
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">People</p>
+        <h1>Donor directory</h1>
+        <p>Donor contact details are visible to authorized staff only.</p>
+    </div>
+    {% if profiles %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Name</th><th>Blood group</th><th>Phone</th></tr></thead>
+                <tbody>
+                    {% for profile in profiles %}
+                        <tr>
+                            <td>{{ profile.user.get_full_name|default:profile.user.username }}</td>
+                            <td><span class="status-pill">{{ profile.blood_group }}</span></td>
+                            <td><a href="tel:{{ profile.phone }}">{{ profile.phone }}</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">No donor profiles have been created yet.</div>
+    {% endif %}
+{% endblock %}

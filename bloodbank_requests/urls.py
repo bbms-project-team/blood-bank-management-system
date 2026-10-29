@@ -12,6 +12,11 @@ urlpatterns = [
     ),
     path("<uuid:request_id>/reserve/", views.reserve_request, name="reserve_request"),
     path("<uuid:request_id>/issue/", views.issue_request, name="issue_request"),
+    path(
+        "notifications/<int:notification_id>/read/",
+        views.mark_notification_read,
+        name="mark_notification_read",
+    ),
     path("alerts/", views.alerts, name="alerts"),
     path("reports/", views.reports, name="reports"),
     path("audit/", views.audit_log, name="audit_log"),

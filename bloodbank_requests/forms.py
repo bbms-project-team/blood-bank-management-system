@@ -15,22 +15,6 @@ class BloodRequestForm(forms.ModelForm):
             "reason",
         ]
         widgets = {
-            "blood_group": forms.Select(
-                choices=[
-                    ("A+", "A+"), ("A-", "A-"),
-                    ("B+", "B+"), ("B-", "B-"),
-                    ("AB+", "AB+"), ("AB-", "AB-"),
-                    ("O+", "O+"), ("O-", "O-"),
-                ]
-            ),
-            "component": forms.Select(
-                choices=[
-                    ("WHOLE_BLOOD", "Whole Blood"),
-                    ("RED_CELLS", "Red Blood Cells"),
-                    ("PLASMA", "Plasma"),
-                    ("PLATELETS", "Platelets"),
-                ]
-            ),
             "reason": forms.Textarea(attrs={"rows": 3}),
         }
 

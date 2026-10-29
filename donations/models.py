@@ -6,15 +6,11 @@ from django.db import models
 from django.db.models import Q
 from donors.models import DonorProfile
 from bloodbank_requests.models import BloodRequest
+from config.domain import BLOOD_GROUPS, COMPONENTS
 
 
 class Donation(models.Model):
-    COMPONENTS = [
-        ("WHOLE_BLOOD", "Whole Blood"),
-        ("RED_CELLS", "Red Blood Cells"),
-        ("PLASMA", "Plasma"),
-        ("PLATELETS", "Platelets"),
-    ]
+    COMPONENTS = COMPONENTS
 
     donor = models.ForeignKey(
         DonorProfile,
@@ -22,7 +18,7 @@ class Donation(models.Model):
         related_name="donations",
     )
     donation_date = models.DateField()
-    blood_group = models.CharField(max_length=3)
+    blood_group = models.CharField(max_length=3, choices=BLOOD_GROUPS)
     component = models.CharField(
         max_length=20,
         choices=COMPONENTS,
@@ -30,6 +26,22 @@ class Donation(models.Model):
     volume_ml = models.PositiveIntegerField(default=450)
     accepted = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(blood_group__in=[value for value, _ in BLOOD_GROUPS]),
+                name="donation_valid_blood_group",
+            ),
+            models.CheckConstraint(
+                condition=Q(component__in=[value for value, _ in COMPONENTS]),
+                name="donation_valid_component",
+            ),
+            models.CheckConstraint(
+                condition=Q(volume_ml__gt=0),
+                name="donation_volume_positive",
+            ),
+        ]
 
     def __str__(self):
         return f"Donation #{self.pk} - {self.blood_group}"
@@ -83,6 +95,12 @@ class BloodUnit(models.Model):
 
     class Meta:
         constraints = [
+            models.CheckConstraint(
+                condition=Q(
+                    status__in=["AVAILABLE", "RESERVED", "ISSUED", "EXPIRED"]
+                ),
+                name="blood_unit_valid_status",
+            ),
             models.CheckConstraint(
                 condition=~Q(status="RESERVED") | Q(reserved_for__isnull=False),
                 name="reserved_unit_has_request",

@@ -1,21 +1,20 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login | BBMS</title>
-</head>
-<body>
-    <h1>Login</h1>
+{% block title %}Sign in | BBMS{% endblock %}
+{% block page_class %}page-shell-narrow{% endblock %}
 
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Login</button>
-    </form>
-
-    <p><a href="{% url 'register' %}">Create an account</a></p>
-    <p><a href="{% url 'home' %}">Back to home</a></p>
-</body>
-</html>
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Welcome back</p>
+        <h1>Sign in to BBMS</h1>
+        <p>Use your account details to continue to your workspace.</p>
+    </div>
+    <section class="panel form-panel">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button class="button-primary" type="submit">Sign in</button>
+        </form>
+        <p class="form-footnote">New to BBMS? <a href="{% url 'register' %}">Create an account</a>.</p>
+    </section>
+{% endblock %}
