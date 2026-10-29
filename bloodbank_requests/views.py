@@ -69,6 +69,22 @@ def my_requests(request):
     )
 
 
+@role_required(User.Role.REQUESTER)
+def mark_notification_read(request, notification_id):
+    if request.method != "POST":
+        return redirect("my_requests")
+    updated = RequestNotification.objects.filter(
+        pk=notification_id,
+        recipient=request.user,
+        read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    if updated:
+        messages.success(request, "Notification marked as read.")
+    else:
+        messages.error(request, "Notification not found or already read.")
+    return redirect("my_requests")
+
+
 @role_required(User.Role.STAFF, User.Role.ADMIN)
 def decide_request(request, request_id):
     blood_request = get_object_or_404(

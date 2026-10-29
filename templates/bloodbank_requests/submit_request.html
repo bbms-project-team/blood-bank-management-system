@@ -1,28 +1,20 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Submit Blood Request</title>
-</head>
-<body>
-    <h1>Submit Blood Request</h1>
+{% block title %}New blood request | BBMS{% endblock %}
+{% block page_class %}page-shell-narrow{% endblock %}
 
-    {% if messages %}
-        {% for message in messages %}
-            <p>{{ message }}</p>
-        {% endfor %}
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Submit Request</button>
-    </form>
-
-    <p>
-        <a href="{% url 'my_requests' %}">View My Requests</a>
-    </p>
-    <p><a href="/">Home</a></p>
-</body>
-</html>
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Requester workspace</p>
+        <h1>Submit a blood request</h1>
+        <p>Enter the request details for blood bank staff to review.</p>
+    </div>
+    <section class="panel form-panel">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button class="button-primary" type="submit">Send request</button>
+        </form>
+        <p class="form-footnote"><a href="{% url 'my_requests' %}">Back to my requests</a></p>
+    </section>
+{% endblock %}

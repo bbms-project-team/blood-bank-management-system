@@ -322,6 +322,43 @@ class BloodRequestTests(TestCase):
         self.assertContains(response, "Your request was approved.")
         self.assertNotContains(response, "Private other request update.")
 
+    def test_requester_can_mark_own_notification_read_only_by_post(self):
+        request = self.create_blood_request()
+        notification = RequestNotification.objects.create(
+            request=request,
+            recipient=self.requester,
+            message="Your request was approved.",
+        )
+        self.client.force_login(self.requester)
+        get_response = self.client.get(
+            reverse("mark_notification_read", kwargs={"notification_id": notification.pk})
+        )
+        self.assertEqual(get_response.status_code, 302)
+        notification.refresh_from_db()
+        self.assertIsNone(notification.read_at)
+
+        response = self.client.post(
+            reverse("mark_notification_read", kwargs={"notification_id": notification.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+        notification.refresh_from_db()
+        self.assertIsNotNone(notification.read_at)
+
+    def test_database_rejects_zero_units_in_blood_request(self):
+        from django.db import IntegrityError, transaction
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                BloodRequest.objects.create(
+                    requester=self.requester,
+                    patient_name="Test Patient",
+                    hospital_name="City Hospital",
+                    blood_group="A+",
+                    component="WHOLE_BLOOD",
+                    units_required=0,
+                    reason="Invalid zero-unit request",
+                )
+
     def test_staff_alerts_show_low_stock_and_expiry(self):
         soon = self.create_unit(expiry=timezone.localdate() + timedelta(days=3))
         expired = self.create_unit(expiry=timezone.localdate() - timedelta(days=1))

@@ -1,15 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>BBMS Audit Log</title></head>
-<body>
-    <h1>Recent Audit Events</h1>
-    {% for event in events %}
-        <article>
-            <p>{{ event.created_at }} — {{ event.action }} — {{ event.object_type }} {{ event.object_id }}</p>
-            <p>Actor: {{ event.actor.username|default:"System" }}</p>
-            {% if event.details %}<p>Details: {{ event.details }}</p>{% endif %}
-        </article>
-    {% empty %}<p>No audit events recorded.</p>{% endfor %}
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Audit log | BBMS{% endblock %}
+
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Administrator view</p>
+        <h1>Audit log</h1>
+        <p>Recent recorded actions and the account that performed them.</p>
+    </div>
+    {% if events %}
+        <div class="audit-list">
+            {% for event in events %}
+                <article class="audit-event">
+                    <time datetime="{{ event.created_at|date:'c' }}">{{ event.created_at|date:"M j, Y · g:i A" }}</time>
+                    <p><strong>{{ event.action|title }}</strong> · {{ event.object_type }} <code>{{ event.object_id }}</code><br><span class="subtle">By {{ event.actor.get_full_name|default:event.actor.username|default:"System" }}</span></p>
+                    {% if event.details %}<p class="audit-details">{{ event.details }}</p>{% endif %}
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">No audit events have been recorded yet.</div>
+    {% endif %}
+{% endblock %}

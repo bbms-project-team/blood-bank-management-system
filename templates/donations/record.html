@@ -1,25 +1,19 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Record Donation | BBMS</title>
-</head>
-<body>
-    <h1>Record Accepted Donation</h1>
+{% block title %}Record donation | BBMS{% endblock %}
+{% block page_class %}page-shell-narrow{% endblock %}
 
-    {% if messages %}
-        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Record Donation</button>
-    </form>
-
-    <p><a href="{% url 'inventory' %}">View Inventory</a></p>
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Inventory intake</p>
+        <h1>Record an accepted donation</h1>
+        <p>Save the donation details to add its unit to the inventory.</p>
+    </div>
+    <section class="panel form-panel">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button class="button-primary" type="submit">Record donation</button>
+        </form>
+    </section>
+{% endblock %}

@@ -1,20 +1,20 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Register | BBMS</title>
-</head>
-<body>
-    <h1>Create your account</h1>
+{% block title %}Create account | BBMS{% endblock %}
+{% block page_class %}page-shell-narrow{% endblock %}
 
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Register</button>
-    </form>
-
-    <p><a href="{% url 'home' %}">Back to home</a></p>
-</body>
-</html>
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Join the network</p>
+        <h1>Create your account</h1>
+        <p>Start with your details below. New public accounts are created with the donor role.</p>
+    </div>
+    <section class="panel form-panel">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button class="button-primary" type="submit">Create account</button>
+        </form>
+        <p class="form-footnote">Already registered? <a href="{% url 'login' %}">Sign in</a>.</p>
+    </section>
+{% endblock %}
