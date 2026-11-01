@@ -22,6 +22,7 @@
                     <a href="{% url 'account_profile' %}">Account</a>
                     {% if user.role == "DONOR" %}
                         <a href="{% url 'my_profile' %}">My profile</a>
+                        <a href="{% url 'book_donation' %}">Book a slot</a>
                     {% endif %}
                     {% if user.role == "REQUESTER" %}
                         <a href="{% url 'inventory' %}">Availability</a>
