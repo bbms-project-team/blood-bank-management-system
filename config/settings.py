@@ -156,6 +156,23 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # configured by the deployment environment before production use.
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# Production requests must use HTTPS. SecurityMiddleware adds HSTS only for
+# HTTPS responses, so browsers learn to keep using the secure endpoint.
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
+SECURE_HSTS_PRELOAD = not DEBUG
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+# Set only when a trusted reverse proxy strips incoming forwarded headers and
+# writes X-Forwarded-Proto itself.
+if os.environ.get("DJANGO_TRUST_X_FORWARDED_PROTO", "").strip().lower() in {
+    "1", "true", "yes", "on",
+}:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Low-stock alerts are based on the count of available, unexpired units.
 BBMS_LOW_STOCK_THRESHOLD = int(os.environ.get("BBMS_LOW_STOCK_THRESHOLD", "5"))
