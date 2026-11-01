@@ -2,16 +2,73 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from accounts.decorators import role_required
 from accounts.models import User
 from donors.models import DonorProfile
-from .forms import DonationForm
-from .models import Donation, BloodUnit
+from donors.eligibility import booking_eligibility_error
+from .forms import DonationForm, DonationBookingForm
+from .models import Donation, BloodUnit, DonationSlot, DonationBooking
 from bloodbank_requests.audit import record_audit
+
+
+@role_required(User.Role.DONOR)
+def book_donation(request):
+    donor = DonorProfile.objects.filter(user=request.user).first()
+    if donor is None:
+        messages.info(request, "Complete your donor profile before booking a slot.")
+        return redirect("my_profile")
+    now = timezone.now()
+    eligibility_error = booking_eligibility_error(donor)
+    current_booking = donor.bookings.filter(slot__starts_at__gt=now).first()
+    form = DonationBookingForm(
+        request.POST if request.method == "POST" else None
+    )
+
+    if request.method == "POST":
+        if eligibility_error:
+            form.add_error(None, eligibility_error)
+        elif current_booking:
+            form.add_error(None, "You already have an upcoming donation booking.")
+        elif form.is_valid():
+            try:
+                with transaction.atomic():
+                    donor = DonorProfile.objects.select_for_update().get(pk=donor.pk)
+                    current_error = booking_eligibility_error(donor)
+                    if current_error:
+                        raise ValidationError(current_error)
+                    if donor.bookings.filter(slot__starts_at__gt=timezone.now()).exists():
+                        raise ValidationError(
+                            "You already have an upcoming donation booking."
+                        )
+                    slot = DonationSlot.objects.select_for_update().get(
+                        pk=form.cleaned_data["slot"].pk,
+                        starts_at__gt=timezone.now(),
+                        booking__isnull=True,
+                    )
+                    DonationBooking.objects.create(donor=donor, slot=slot)
+            except ValidationError as error:
+                form.add_error(None, error.message)
+            except (DonationSlot.DoesNotExist, IntegrityError):
+                form.add_error("slot", "That slot was just booked. Please choose another.")
+            else:
+                messages.success(request, "Your donation slot has been booked.")
+                return redirect("book_donation")
+
+    current_booking = donor.bookings.filter(slot__starts_at__gt=now).first()
+    return render(
+        request,
+        "donations/book.html",
+        {
+            "form": form,
+            "eligibility_error": eligibility_error,
+            "current_booking": current_booking,
+        },
+    )
 
 
 @role_required(User.Role.STAFF, User.Role.ADMIN)
