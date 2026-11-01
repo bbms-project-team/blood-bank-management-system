@@ -2,6 +2,7 @@
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from donors.models import DonorProfile
@@ -144,6 +145,17 @@ class BloodUnit(models.Model):
                 name="issued_unit_has_dispatch_record",
             ),
         ]
+
+    def clean(self):
+        super().clean()
+        if (
+            self.donation_id
+            and self.expiry_date
+            and self.expiry_date < self.donation.donation_date
+        ):
+            raise ValidationError({
+                "expiry_date": "Expiry date cannot be before the donation date."
+            })
 
     def __str__(self):
         return str(self.unit_code)

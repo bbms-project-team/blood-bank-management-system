@@ -4,6 +4,7 @@ from datetime import date, timedelta
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from accounts.models import User
 from donors.models import DonorProfile
@@ -137,6 +138,23 @@ class DonationAndInventoryTests(TestCase):
             self.donor.last_donation_date,
             self.donation_date,
         )
+
+    def test_blood_unit_expiry_cannot_precede_donation_date(self):
+        donation = Donation.objects.create(
+            donor=self.donor,
+            donation_date=self.donation_date,
+            blood_group="A+",
+            component="WHOLE_BLOOD",
+            volume_ml=450,
+            accepted=True,
+        )
+        unit = BloodUnit(
+            donation=donation,
+            expiry_date=self.donation_date - timedelta(days=1),
+        )
+
+        with self.assertRaises(ValidationError):
+            unit.full_clean()
 
     def test_donation_with_mismatched_blood_group_is_rejected(self):
         self.client.force_login(self.staff)
