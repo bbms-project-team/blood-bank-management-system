@@ -1,6 +1,8 @@
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
+from unittest.mock import patch
+from django.db import OperationalError
 
 from accounts.models import User
 
@@ -25,6 +27,18 @@ class AccountsTests(TestCase):
     def test_home_page_loads(self):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
+
+    def test_health_check_returns_ok_when_database_is_available(self):
+        response = self.client.get(reverse("health_check"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"ok")
+        self.assertIn("no-store", response["Cache-Control"])
+
+    @patch("accounts.views.connection.cursor", side_effect=OperationalError("database unavailable"))
+    def test_health_check_returns_unavailable_when_database_is_down(self, _mock_cursor):
+        response = self.client.get(reverse("health_check"))
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.content, b"unavailable")
 
     def test_registration_page_loads(self):
         response = self.client.get(reverse("register"))
@@ -133,3 +147,16 @@ class AccountsTests(TestCase):
         from django.conf import settings
         self.assertEqual(settings.SESSION_COOKIE_AGE, 15 * 60)
         self.assertTrue(settings.SESSION_EXPIRE_AT_BROWSER_CLOSE)
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_http_requests_redirect_to_https_when_enabled(self):
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 301)
+        self.assertTrue(response["Location"].startswith("https://"))
+
+    @override_settings(SECURE_HSTS_SECONDS=31536000)
+    def test_https_responses_include_hsts_when_enabled(self):
+        response = self.client.get(reverse("home"), secure=True)
+        self.assertEqual(
+            response["Strict-Transport-Security"], "max-age=31536000"
+        )
