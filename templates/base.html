@@ -19,8 +19,10 @@
             <nav class="main-nav" aria-label="Main navigation">
                 {% if user.is_authenticated %}
                     <a href="{% url 'home' %}">Home</a>
+                    <a href="{% url 'account_profile' %}">Account</a>
                     {% if user.role == "DONOR" %}
                         <a href="{% url 'my_profile' %}">My profile</a>
+                        <a href="{% url 'book_donation' %}">Book a slot</a>
                     {% endif %}
                     {% if user.role == "REQUESTER" %}
                         <a href="{% url 'inventory' %}">Availability</a>

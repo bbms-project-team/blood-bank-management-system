@@ -47,6 +47,36 @@ class Donation(models.Model):
         return f"Donation #{self.pk} - {self.blood_group}"
 
 
+class DonationSlot(models.Model):
+    starts_at = models.DateTimeField(unique=True)
+
+    class Meta:
+        ordering = ["starts_at"]
+
+    def __str__(self):
+        return self.starts_at.strftime("%Y-%m-%d %H:%M")
+
+
+class DonationBooking(models.Model):
+    donor = models.ForeignKey(
+        DonorProfile,
+        on_delete=models.PROTECT,
+        related_name="bookings",
+    )
+    slot = models.OneToOneField(
+        DonationSlot,
+        on_delete=models.PROTECT,
+        related_name="booking",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["slot__starts_at"]
+
+    def __str__(self):
+        return f"{self.donor} — {self.slot}"
+
+
 class BloodUnit(models.Model):
     STATUS_CHOICES = [
         ("AVAILABLE", "Available"),
