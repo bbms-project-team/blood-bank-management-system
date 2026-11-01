@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Book a donation slot | BBMS{% endblock %}
+{% block page_class %}page-shell-narrow{% endblock %}
+
+{% block content %}
+    <div class="page-heading">
+        <p class="eyebrow">Donation appointment</p>
+        <h1>Book a donation slot</h1>
+        <p>This preliminary check uses your age and last recorded donation date. Blood bank staff will assess your health and complete the required screening before donation.</p>
+    </div>
+    {% if current_booking %}
+        <section class="panel">
+            <h2>Your upcoming appointment</h2>
+            <p>{{ current_booking.slot.starts_at|date:"DATE_FORMAT" }} at {{ current_booking.slot.starts_at|time:"TIME_FORMAT" }}</p>
+        </section>
+    {% elif eligibility_error %}
+        <section class="panel message message-warning" role="status">
+            <p>{{ eligibility_error }}</p>
+        </section>
+    {% else %}
+        <section class="panel form-panel">
+            {% if form.errors or form.fields.slot.queryset %}
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <button class="button-primary" type="submit">Book slot</button>
+                </form>
+            {% else %}
+                <p>No upcoming slots have been posted. Please check again later.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
