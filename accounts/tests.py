@@ -98,6 +98,70 @@ class AccountsTests(TestCase):
             User.objects.filter(username="testuser").exists()
         )
 
+    def test_authenticated_user_can_update_permitted_profile_fields(self):
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("account_profile"),
+            {
+                "first_name": "Updated",
+                "last_name": "Donor",
+                "email": " UPDATED@example.com ",
+            },
+        )
+        self.assertRedirects(response, reverse("account_profile"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Updated")
+        self.assertEqual(self.user.last_name, "Donor")
+        self.assertEqual(self.user.email, "updated@example.com")
+
+    def test_profile_update_rejects_duplicate_email(self):
+        User.objects.create_user(
+            username="anotheruser",
+            email="test@example.com",
+            password="StrongPass123!",
+            role=User.Role.DONOR,
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("account_profile"),
+            {
+                "first_name": "Test",
+                "last_name": "User",
+                "email": "test@example.com",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "existing@example.com")
+
+    def test_profile_update_cannot_change_role_or_password(self):
+        original_password = self.user.password
+        other_user = User.objects.create_user(
+            username="otheraccount",
+            email="other-account@example.com",
+            password="StrongPass123!",
+            role=User.Role.REQUESTER,
+        )
+        self.client.force_login(self.user)
+        response = self.client.post(
+            reverse("account_profile"),
+            {
+                "first_name": "Test",
+                "last_name": "User",
+                "email": "existing@example.com",
+                "role": User.Role.ADMIN,
+                "password": "CompromisedPassword123!",
+                "user_id": other_user.pk,
+            },
+        )
+        self.assertRedirects(response, reverse("account_profile"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.role, User.Role.DONOR)
+        self.assertEqual(self.user.password, original_password)
+        other_user.refresh_from_db()
+        self.assertEqual(other_user.email, "other-account@example.com")
+        self.assertEqual(other_user.role, User.Role.REQUESTER)
+
     def test_login_page_loads(self):
         response = self.client.get(reverse("login"))
         self.assertEqual(response.status_code, 200)
