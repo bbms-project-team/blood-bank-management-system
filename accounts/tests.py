@@ -1,5 +1,5 @@
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import User
@@ -133,3 +133,16 @@ class AccountsTests(TestCase):
         from django.conf import settings
         self.assertEqual(settings.SESSION_COOKIE_AGE, 15 * 60)
         self.assertTrue(settings.SESSION_EXPIRE_AT_BROWSER_CLOSE)
+
+    @override_settings(SECURE_SSL_REDIRECT=True)
+    def test_http_requests_redirect_to_https_when_enabled(self):
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 301)
+        self.assertTrue(response["Location"].startswith("https://"))
+
+    @override_settings(SECURE_HSTS_SECONDS=31536000)
+    def test_https_responses_include_hsts_when_enabled(self):
+        response = self.client.get(reverse("home"), secure=True)
+        self.assertEqual(
+            response["Strict-Transport-Security"], "max-age=31536000"
+        )
