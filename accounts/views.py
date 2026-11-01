@@ -10,7 +10,7 @@ from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from .forms import RegistrationForm
+from .forms import RegistrationForm, UserProfileForm
 
 
 def register(request):
@@ -33,6 +33,19 @@ def register(request):
 
 def home(request):
     return render(request, "home.html")
+
+
+@login_required
+def profile(request):
+    if request.method == "POST":
+        form = UserProfileForm(request.POST, instance=request.user)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Your account profile was updated.")
+            return redirect("account_profile")
+    else:
+        form = UserProfileForm(instance=request.user)
+    return render(request, "accounts/profile.html", {"form": form})
 
 
 @require_GET
