@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from donors.models import DonorProfile
-from donations.models import Donation, BloodUnit
+from donations.models import Donation, BloodUnit, DonationBooking, DonationSlot
 from bloodbank_requests.models import BloodRequest
 
 
@@ -268,4 +268,63 @@ class DonationAndInventoryTests(TestCase):
         response = self.client.get(reverse("inventory"))
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.context["units"]), 1)
+
+
+class DonationBookingTests(TestCase):
+    def setUp(self):
+        self.donor_user = User.objects.create_user(
+            username="booking_donor",
+            email="booking-donor@example.com",
+            password="StrongPass123!",
+            role=User.Role.DONOR,
+        )
+        self.donor = DonorProfile.objects.create(
+            user=self.donor_user,
+            phone="9876543210",
+            date_of_birth=date(1995, 5, 15),
+            address="Bengaluru",
+            blood_group="A+",
+        )
+        self.slot = DonationSlot.objects.create(
+            starts_at=timezone.now() + timedelta(days=1),
+        )
+
+    def test_donor_can_book_an_available_future_slot(self):
+        self.client.force_login(self.donor_user)
+
+        response = self.client.get(reverse("book_donation"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Available donation time")
+        self.assertContains(response, str(self.slot.starts_at.year))
+
+        response = self.client.post(
+            reverse("book_donation"),
+            {"slot": self.slot.pk},
+        )
+
+        self.assertRedirects(response, reverse("book_donation"))
+        self.assertTrue(
+            DonationBooking.objects.filter(donor=self.donor, slot=self.slot).exists()
+        )
+
+    def test_booked_or_past_slots_are_not_form_choices(self):
+        booked_slot = DonationSlot.objects.create(
+            starts_at=timezone.now() + timedelta(days=2),
+        )
+        DonationBooking.objects.create(donor=self.donor, slot=booked_slot)
+        old_slot = DonationSlot.objects.create(
+            starts_at=timezone.now() - timedelta(minutes=1),
+        )
+
+        self.client.force_login(self.donor_user)
+        response = self.client.get(reverse("book_donation"))
+
+        self.assertEqual(response.status_code, 200)
+        available_ids = set(
+            response.context["form"].fields["slot"].queryset.values_list("pk", flat=True)
+        )
+        self.assertEqual(available_ids, {self.slot.pk})
+        self.assertNotIn(booked_slot.pk, available_ids)
+        self.assertNotIn(old_slot.pk, available_ids)
 

@@ -10,7 +10,13 @@
         {% if notifications %}
             <section aria-label="Unread request updates" class="messages">
                 {% for notification in notifications %}
-                    <p class="message" role="status">{{ notification.message }} <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at }}</time></p>
+                    <div class="message" role="status">
+                        <p>{{ notification.message }} <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at }}</time></p>
+                        <form method="post" action="{% url 'mark_notification_read' notification.pk %}">
+                            {% csrf_token %}
+                            <button class="button-secondary" type="submit">Mark as read</button>
+                        </form>
+                    </div>
                 {% endfor %}
             </section>
         {% endif %}

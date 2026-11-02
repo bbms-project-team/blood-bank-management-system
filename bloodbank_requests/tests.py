@@ -449,6 +449,26 @@ class BloodRequestTests(TestCase):
         self.assertNotContains(response, "Private other request update.")
         self.assertNotContains(response, "Private Patient")
 
+    def test_requester_can_mark_only_their_own_notification_as_read(self):
+        request = self.create_blood_request()
+        notification = RequestNotification.objects.create(
+            request=request,
+            recipient=self.requester,
+            message="Your request was approved.",
+        )
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse(
+                "mark_notification_read",
+                kwargs={"notification_id": notification.pk},
+            )
+        )
+
+        self.assertRedirects(response, reverse("my_requests"))
+        notification.refresh_from_db()
+        self.assertIsNotNone(notification.read_at)
+
     def test_staff_alerts_show_low_stock_and_expiry(self):
         soon = self.create_unit(expiry=timezone.localdate() + timedelta(days=3))
         expired = self.create_unit(expiry=timezone.localdate() - timedelta(days=1))

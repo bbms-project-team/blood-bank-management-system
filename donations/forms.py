@@ -1,7 +1,7 @@
 
 from django import forms
 from django.utils import timezone
-from .models import Donation
+from .models import Donation, DonationSlot
 
 
 class DonationForm(forms.ModelForm):
@@ -42,3 +42,18 @@ class DonationForm(forms.ModelForm):
             )
 
         return cleaned_data
+
+
+class DonationBookingForm(forms.Form):
+    slot = forms.ModelChoiceField(
+        queryset=DonationSlot.objects.none(),
+        label="Available donation time",
+        empty_label="Choose a time",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["slot"].queryset = DonationSlot.objects.filter(
+            starts_at__gt=timezone.now(),
+            booking__isnull=True,
+        )

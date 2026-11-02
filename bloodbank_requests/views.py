@@ -6,8 +6,9 @@ from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count
+from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 
 from accounts.decorators import role_required
@@ -89,6 +90,22 @@ def my_requests(request):
             ) if request.user.role == User.Role.REQUESTER else [],
         },
     )
+
+
+@role_required(User.Role.REQUESTER)
+@require_POST
+def mark_notification_read(request, notification_id):
+    notification = get_object_or_404(
+        RequestNotification,
+        pk=notification_id,
+        recipient=request.user,
+    )
+    RequestNotification.objects.filter(
+        pk=notification.pk,
+        recipient=request.user,
+        read_at__isnull=True,
+    ).update(read_at=timezone.now())
+    return redirect("my_requests")
 
 
 @role_required(User.Role.STAFF, User.Role.ADMIN)
