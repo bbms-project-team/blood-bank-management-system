@@ -66,6 +66,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'config.middleware.APIExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -176,3 +177,38 @@ if os.environ.get("DJANGO_TRUST_X_FORWARDED_PROTO", "").strip().lower() in {
 
 # Low-stock alerts are based on the count of available, unexpired units.
 BBMS_LOW_STOCK_THRESHOLD = int(os.environ.get("BBMS_LOW_STOCK_THRESHOLD", "5"))
+
+# Application logging configuration
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "{levelname} {asctime} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "bloodbank_requests": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "accounts": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

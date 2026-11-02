@@ -70,6 +70,41 @@ class BloodRequestTests(TestCase):
             **self.request_data,
         )
 
+    def test_reservation_workflow_failure_is_logged(self):
+        blood_request = self.create_blood_request()
+
+        with self.assertLogs(
+            "bloodbank_requests.services",
+            level="WARNING",
+        ) as captured:
+            with self.assertRaises(WorkflowError):
+                reserve_request(blood_request.request_id, self.staff)
+
+        self.assertTrue(
+            any(
+                "reservation rejected" in message
+                for message in captured.output
+            )
+        )
+
+    def test_issuance_workflow_failure_is_logged(self):
+        blood_request = self.create_blood_request()
+
+        with self.assertLogs(
+            "bloodbank_requests.services",
+            level="WARNING",
+        ) as captured:
+            with self.assertRaises(WorkflowError):
+                issue_request(blood_request.request_id, self.staff)
+
+        self.assertTrue(
+            any(
+                "issuance rejected" in message
+                for message in captured.output
+            )
+        )
+
+
     # ==================================================
     # ISSUE 20: INPUT VALIDATION AND AUTHORIZATION TESTS
     # ==================================================

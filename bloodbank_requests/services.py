@@ -1,4 +1,5 @@
 
+import logging
 import time
 
 from django.db import transaction
@@ -10,6 +11,9 @@ from donations.models import BloodUnit
 from .audit import record_audit
 from .compatibility import is_blood_compatible
 from .models import BloodRequest, RequestNotification
+
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowError(Exception):
@@ -116,15 +120,40 @@ def _reserve_request_once(request_id, actor):
 
 
 def reserve_request(request_id, actor):
+    """Reserve blood units with retry handling and operational logging."""
+
     for attempt in range(3):
         try:
-            return _reserve_request_once(request_id, actor)
+            result = _reserve_request_once(request_id, actor)
 
-        except OperationalError as exc:
+            logger.info(
+                "Blood request reservation completed successfully."
+            )
+
+            return result
+
+        except WorkflowError:
+            logger.warning(
+                "Blood request reservation rejected due to workflow validation."
+            )
+            raise
+
+        except OperationalError:
             if attempt == 2:
+                logger.error(
+                    "Blood request reservation failed after 3 attempts "
+                    "because of database contention."
+                )
+
                 raise WorkflowError(
                     "Inventory is busy due to another update; please retry."
-                ) from exc
+                ) from None
+
+            logger.warning(
+                "Database contention during blood request reservation. "
+                "Retry attempt %s of 3.",
+                attempt + 1,
+            )
 
             time.sleep(0.05 * (attempt + 1))
 
@@ -219,14 +248,39 @@ def _issue_request_once(request_id, actor):
 
 
 def issue_request(request_id, actor):
+    """Issue reserved blood units with retry handling and logging."""
+
     for attempt in range(3):
         try:
-            return _issue_request_once(request_id, actor)
+            result = _issue_request_once(request_id, actor)
 
-        except OperationalError as exc:
+            logger.info(
+                "Blood request issuance completed successfully."
+            )
+
+            return result
+
+        except WorkflowError:
+            logger.warning(
+                "Blood request issuance rejected due to workflow validation."
+            )
+            raise
+
+        except OperationalError:
             if attempt == 2:
+                logger.error(
+                    "Blood request issuance failed after 3 attempts "
+                    "because of database contention."
+                )
+
                 raise WorkflowError(
                     "Inventory is busy due to another update; please retry."
-                ) from exc
+                ) from None
+
+            logger.warning(
+                "Database contention during blood request issuance. "
+                "Retry attempt %s of 3.",
+                attempt + 1,
+            )
 
             time.sleep(0.05 * (attempt + 1))
