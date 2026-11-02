@@ -490,8 +490,7 @@ class BloodRequestTests(TestCase):
 
         self.assertEqual(unit.status, "RESERVED")
         self.assertEqual(request.status, BloodRequest.Status.RESERVED)
-
-    # ==================================================
+            # ==================================================
     # ACCESS CONTROL, NOTIFICATION AND AUDIT TESTS
     # ==================================================
 
@@ -743,6 +742,7 @@ class BloodRequestTests(TestCase):
             blood_group="A+",
             component="WHOLE_BLOOD",
         )
+
         reserve_request(request.request_id, self.staff)
 
         # Simulate inconsistent/corrupted reservation data.
@@ -764,7 +764,148 @@ class BloodRequestTests(TestCase):
         self.assertFalse(
             AuditLog.objects.filter(action="REQUEST_ISSUED").exists()
         )
+            # ==================================================
+    # ISSUE 22: BLOOD ISSUE AND DISPATCH VIEW TESTS
+    # ==================================================
 
+    def test_staff_can_issue_reserved_request_through_view(self):
+        request = self.approved_request(units=1)
+        unit = self.create_unit()
+
+        self.client.force_login(self.staff)
+
+        # Reserve the compatible blood unit first.
+        reserve_response = self.client.post(
+            reverse(
+                "reserve_request",
+                kwargs={"request_id": request.request_id},
+            )
+        )
+
+        self.assertRedirects(
+            reserve_response,
+            reverse("my_requests"),
+        )
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.RESERVED,
+        )
+        self.assertEqual(unit.status, "RESERVED")
+
+        # Issue and dispatch the reserved unit.
+        issue_response = self.client.post(
+            reverse(
+                "issue_request",
+                kwargs={"request_id": request.request_id},
+            )
+        )
+
+        self.assertRedirects(
+            issue_response,
+            reverse("my_requests"),
+        )
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.ISSUED,
+        )
+        self.assertEqual(unit.status, "ISSUED")
+        self.assertEqual(unit.issued_by, self.staff)
+        self.assertIsNotNone(unit.issued_at)
+
+        self.assertTrue(
+            AuditLog.objects.filter(
+                actor=self.staff,
+                action="REQUEST_ISSUED",
+                object_id=str(request.request_id),
+            ).exists()
+        )
+
+        self.assertTrue(
+            RequestNotification.objects.filter(
+                request=request,
+                recipient=self.requester,
+            ).exists()
+        )
+
+    def test_requester_cannot_issue_reserved_blood(self):
+        request = self.approved_request(units=1)
+        unit = self.create_unit()
+
+        reserve_request(request.request_id, self.staff)
+
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse(
+                "issue_request",
+                kwargs={"request_id": request.request_id},
+            )
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.RESERVED,
+        )
+        self.assertEqual(unit.status, "RESERVED")
+
+        self.assertFalse(
+            AuditLog.objects.filter(
+                action="REQUEST_ISSUED"
+            ).exists()
+        )
+
+    def test_issue_view_does_not_process_get_requests(self):
+        request = self.approved_request(units=1)
+        unit = self.create_unit()
+
+        reserve_request(request.request_id, self.staff)
+
+        self.client.force_login(self.staff)
+
+        response = self.client.get(
+            reverse(
+                "issue_request",
+                kwargs={"request_id": request.request_id},
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("my_requests"),
+        )
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.RESERVED,
+        )
+        self.assertEqual(unit.status, "RESERVED")
+
+        self.assertFalse(
+            AuditLog.objects.filter(
+                action="REQUEST_ISSUED"
+            ).exists()
+        )
+
+
+# ==================================================
+# CONCURRENT RESERVATION TESTS
+# ==================================================
 
 class ConcurrentReservationTests(TransactionTestCase):
     reset_sequences = True
