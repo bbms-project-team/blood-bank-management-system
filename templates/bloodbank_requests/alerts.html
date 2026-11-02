@@ -1,48 +1,51 @@
 {% extends "base.html" %}
 
-{% block title %}Inventory alerts | BBMS{% endblock %}
+{% block title %}Inventory alerts{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">Stock attention</p>
-        <h1>Inventory alerts</h1>
-        <p>Review low stock and units that are nearing or past their recorded expiry date.</p>
-    </div>
+    <h1>Inventory alerts</h1>
+    <p class="lead">Low-stock threshold: fewer than {{ threshold }} available, unexpired units per blood group and component.</p>
 
-    <div class="alert-grid">
-        <section class="panel alert-panel">
-            <div class="panel-heading"><h2><span class="alert-dot" aria-hidden="true"></span>Low stock</h2><p>Fewer than {{ threshold }} available, unexpired units for a blood group and component.</p></div>
-            {% if stock_alerts %}
-                <div class="table-wrap"><table>
-                    <thead><tr><th>Group</th><th>Component</th><th>Available</th></tr></thead>
-                    <tbody>{% for item in stock_alerts %}<tr><td>{{ item.donation__blood_group }}</td><td>{{ item.donation__component }}</td><td>{{ item.units }}</td></tr>{% endfor %}</tbody>
-                </table></div>
-            {% else %}<div class="empty-state">Stock levels are above the alert threshold.</div>{% endif %}
-        </section>
+    <section aria-labelledby="low-stock-title">
+        <h2 id="low-stock-title">Low stock</h2>
+        <div class="card-grid">
+            {% for item in stock_alerts %}
+                <article class="panel">
+                    <h3>{{ item.donation__blood_group }} · {{ item.donation__component }}</h3>
+                    <p>{{ item.units }} available units</p>
+                </article>
+            {% empty %}
+                <p>No low-stock alerts.</p>
+            {% endfor %}
+        </div>
+    </section>
 
-        <section class="panel alert-panel">
-            <div class="panel-heading"><h2><span class="alert-dot alert-dot-red" aria-hidden="true"></span>Past expiry</h2><p>Available or reserved units with an expiry date before today.</p></div>
-            {% if expired_units %}
-                <div class="table-wrap"><table>
-                    <thead><tr><th>Unit</th><th>Group</th><th>Expired</th></tr></thead>
-                    <tbody>{% for unit in expired_units %}<tr><td><code>{{ unit.unit_code }}</code></td><td>{{ unit.donation.blood_group }}</td><td>{{ unit.expiry_date|date:"M j, Y" }}</td></tr>{% endfor %}</tbody>
-                </table></div>
-            {% else %}<div class="empty-state">No expired available or reserved units.</div>{% endif %}
-        </section>
+    <section aria-labelledby="expired-title">
+        <h2 id="expired-title">Expired units still marked available or reserved</h2>
+        <div class="card-grid">
+            {% for unit in expired_units %}
+                <article class="panel">
+                    <h3>Unit {{ unit.unit_code }}</h3>
+                    <p>{{ unit.donation.blood_group }} · Expired {{ unit.expiry_date }}</p>
+                </article>
+            {% empty %}
+                <p>No expired available or reserved units.</p>
+            {% endfor %}
+        </div>
+    </section>
 
-        <section class="panel alert-panel">
-            <div class="panel-heading"><h2><span class="alert-dot" aria-hidden="true"></span>Expiring soon</h2><p>Available or reserved units expiring within seven days.</p></div>
-            {% if expiring_units %}
-                <div class="table-wrap"><table>
-                    <thead><tr><th>Unit</th><th>Group</th><th>Expiry</th></tr></thead>
-                    <tbody>{% for unit in expiring_units %}<tr><td><code>{{ unit.unit_code }}</code></td><td>{{ unit.donation.blood_group }}</td><td>{{ unit.expiry_date|date:"M j, Y" }}</td></tr>{% endfor %}</tbody>
-                </table></div>
-            {% else %}<div class="empty-state">No units are due to expire within seven days.</div>{% endif %}
-        </section>
-
-        <section class="panel alert-panel">
-            <div class="panel-heading"><h2>Request updates</h2><p>Requesters see their latest status messages in their request list.</p></div>
-            <a class="button button-secondary" href="{% url 'my_requests' %}">Review requests</a>
-        </section>
-    </div>
+    <section aria-labelledby="expiring-title">
+        <h2 id="expiring-title">Units expiring within 7 days</h2>
+        <div class="card-grid">
+            {% for unit in expiring_units %}
+                <article class="panel">
+                    <h3>Unit {{ unit.unit_code }}</h3>
+                    <p>{{ unit.donation.blood_group }} · Expires {{ unit.expiry_date }}</p>
+                </article>
+            {% empty %}
+                <p>No units expiring soon.</p>
+            {% endfor %}
+        </div>
+    </section>
+    <p>Request status changes are shown to requesters in their request list.</p>
 {% endblock %}

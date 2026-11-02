@@ -1,29 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Donor directory | BBMS{% endblock %}
+{% block title %}Donors{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">People</p>
-        <h1>Donor directory</h1>
-        <p>Donor contact details are visible to authorized staff only.</p>
+    <h1>Donor profiles</h1>
+    <div class="card-grid">
+        {% for profile in profiles %}
+            <article class="donor-card" aria-labelledby="donor-{{ profile.pk }}">
+                <h2 id="donor-{{ profile.pk }}">{{ profile.user.get_full_name|default:profile.user.username }}</h2>
+                <p><strong>Blood group:</strong> {{ profile.blood_group }}</p>
+                <p><strong>Phone:</strong> <a href="tel:{{ profile.phone }}">{{ profile.phone }}</a></p>
+            </article>
+        {% empty %}
+            <p>No donor profiles have been created yet.</p>
+        {% endfor %}
     </div>
-    {% if profiles %}
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Name</th><th>Blood group</th><th>Phone</th></tr></thead>
-                <tbody>
-                    {% for profile in profiles %}
-                        <tr>
-                            <td>{{ profile.user.get_full_name|default:profile.user.username }}</td>
-                            <td><span class="status-pill">{{ profile.blood_group }}</span></td>
-                            <td><a href="tel:{{ profile.phone }}">{{ profile.phone }}</a></td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div class="empty-state">No donor profiles have been created yet.</div>
-    {% endif %}
 {% endblock %}

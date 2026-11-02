@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
-from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -21,23 +20,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# Development defaults keep the project runnable locally. A non-debug
-# deployment must supply a private key and its allowed hostnames.
+# Local development stays easy to run; deployments must provide their own
+# secret key, host list, and DEBUG setting through environment variables.
 DEBUG = os.environ.get("DJANGO_DEBUG", "true").strip().lower() in {
     "1", "true", "yes", "on",
 }
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
 if not SECRET_KEY:
     if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
+
         raise ImproperlyConfigured(
             "Set DJANGO_SECRET_KEY when DJANGO_DEBUG is disabled."
         )
-    SECRET_KEY = "local-development-only-key-do-not-use-in-production"
+    SECRET_KEY = "django-insecure-local-development-only-key"
 
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get(
-        "DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost"
+        "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]"
     ).split(",")
     if host.strip()
 ]
@@ -60,13 +61,13 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'config.middleware.APIExceptionMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'config.middleware.APIExceptionMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -157,55 +158,22 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # configured by the deployment environment before production use.
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SAMESITE = "Lax"
-CSRF_COOKIE_SAMESITE = "Lax"
-
-# Production requests must use HTTPS. SecurityMiddleware adds HSTS only for
-# HTTPS responses, so browsers learn to keep using the secure endpoint.
-SECURE_SSL_REDIRECT = not DEBUG
-SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
-SECURE_HSTS_INCLUDE_SUBDOMAINS = not DEBUG
-SECURE_HSTS_PRELOAD = not DEBUG
-SECURE_CONTENT_TYPE_NOSNIFF = True
-SECURE_REFERRER_POLICY = "same-origin"
-# Set only when a trusted reverse proxy strips incoming forwarded headers and
-# writes X-Forwarded-Proto itself.
-if os.environ.get("DJANGO_TRUST_X_FORWARDED_PROTO", "").strip().lower() in {
-    "1", "true", "yes", "on",
-}:
-    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = os.environ.get(
+    "DJANGO_SECURE_SSL_REDIRECT", str(not DEBUG)
+).strip().lower() in {"1", "true", "yes", "on"}
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
 
 # Low-stock alerts are based on the count of available, unexpired units.
 BBMS_LOW_STOCK_THRESHOLD = int(os.environ.get("BBMS_LOW_STOCK_THRESHOLD", "5"))
 
-# Application logging configuration
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        "standard": {
-            "format": "{levelname} {asctime} {name} {message}",
-            "style": "{",
-        },
-    },
     "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "standard",
-        },
+        "console": {"class": "logging.StreamHandler"},
     },
     "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "WARNING",
-            "propagate": False,
-        },
         "bloodbank_requests": {
-            "handlers": ["console"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        "accounts": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,

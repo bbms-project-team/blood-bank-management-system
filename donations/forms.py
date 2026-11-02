@@ -47,7 +47,8 @@ class DonationForm(forms.ModelForm):
 class DonationBookingForm(forms.Form):
     slot = forms.ModelChoiceField(
         queryset=DonationSlot.objects.none(),
-        empty_label="Choose an available slot",
+        label="Available donation time",
+        empty_label="Choose a time",
     )
 
     def __init__(self, *args, **kwargs):

@@ -1,38 +1,34 @@
 {% extends "base.html" %}
 
-{% block title %}Reports | BBMS{% endblock %}
+{% block title %}Reports{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">Operations summary</p>
-        <h1>Reports</h1>
-        <p>A current summary of accepted donations, stock, and request progress.</p>
-    </div>
-
-    <section class="stat-grid" aria-label="Key totals">
-        <div class="stat-card"><span class="stat-label">Accepted donations</span><span class="stat-value">{{ donation_count }}</span></div>
-        <div class="stat-card"><span class="stat-label">Available units</span><span class="stat-value">{{ available_units }}</span></div>
-        {% for item in requests_by_status %}
-            <div class="stat-card"><span class="stat-label">{{ item.status|title }} requests</span><span class="stat-value">{{ item.total }}</span></div>
-        {% endfor %}
+    <h1>Inventory and request summary</h1>
+    <section class="stats-grid" aria-label="Key totals">
+        <div class="stat-card"><span>Accepted donations recorded</span><strong>{{ donation_count }}</strong></div>
+        <div class="stat-card"><span>Available unexpired units</span><strong>{{ available_units }}</strong></div>
     </section>
 
-    <div class="alert-grid">
-        <section class="panel">
-            <div class="panel-heading"><h2>Units by status</h2><p>Inventory records grouped by their current state.</p></div>
-            {% if units_by_status %}
-                <div class="table-wrap"><table><thead><tr><th>Status</th><th>Units</th></tr></thead>
-                    <tbody>{% for item in units_by_status %}<tr><td>{{ item.status|title }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
-                </table></div>
-            {% else %}<div class="empty-state">No inventory records yet.</div>{% endif %}
+    <div class="card-grid">
+        <section class="panel" aria-labelledby="units-title">
+            <h2 id="units-title">Units by status</h2>
+            <ul>
+                {% for item in units_by_status %}
+                    <li>{{ item.status }}: {{ item.total }}</li>
+                {% empty %}
+                    <li>No inventory records.</li>
+                {% endfor %}
+            </ul>
         </section>
-        <section class="panel">
-            <div class="panel-heading"><h2>Requests by status</h2><p>Requests grouped by their current review or fulfillment status.</p></div>
-            {% if requests_by_status %}
-                <div class="table-wrap"><table><thead><tr><th>Status</th><th>Requests</th></tr></thead>
-                    <tbody>{% for item in requests_by_status %}<tr><td>{{ item.status|title }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
-                </table></div>
-            {% else %}<div class="empty-state">No blood requests yet.</div>{% endif %}
+        <section class="panel" aria-labelledby="requests-title">
+            <h2 id="requests-title">Requests by status</h2>
+            <ul>
+                {% for item in requests_by_status %}
+                    <li>{{ item.status }}: {{ item.total }}</li>
+                {% empty %}
+                    <li>No requests.</li>
+                {% endfor %}
+            </ul>
         </section>
     </div>
 {% endblock %}

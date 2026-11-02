@@ -1,19 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Record donation | BBMS{% endblock %}
-{% block page_class %}page-shell-narrow{% endblock %}
+{% block title %}Record donation{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">Inventory intake</p>
-        <h1>Record an accepted donation</h1>
-        <p>Save the donation details to add its unit to the inventory.</p>
-    </div>
-    <section class="panel form-panel">
+    <section class="card" aria-labelledby="page-title">
+        <h1 id="page-title">Record accepted donation</h1>
+        <p>Recorded donations are added to the blood inventory.</p>
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button class="button-primary" type="submit">Record donation</button>
+            <button type="submit">Record donation</button>
         </form>
     </section>
 {% endblock %}

@@ -1,20 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}New blood request | BBMS{% endblock %}
-{% block page_class %}page-shell-narrow{% endblock %}
+{% block title %}Submit blood request{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">Requester workspace</p>
-        <h1>Submit a blood request</h1>
-        <p>Enter the request details for blood bank staff to review.</p>
-    </div>
-    <section class="panel form-panel">
+    <section class="card" aria-labelledby="page-title">
+        <h1 id="page-title">Submit blood request</h1>
+        <p>Provide the patient and hospital details so staff can review the request.</p>
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button class="button-primary" type="submit">Send request</button>
+            <button type="submit">Submit request</button>
         </form>
-        <p class="form-footnote"><a href="{% url 'my_requests' %}">Back to my requests</a></p>
     </section>
 {% endblock %}

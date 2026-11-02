@@ -1,20 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Sign in | BBMS{% endblock %}
-{% block page_class %}page-shell-narrow{% endblock %}
+{% block title %}Log in{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">Welcome back</p>
-        <h1>Sign in to BBMS</h1>
-        <p>Use your account details to continue to your workspace.</p>
-    </div>
-    <section class="panel form-panel">
+    <section class="card" aria-labelledby="page-title">
+        <h1 id="page-title">Log in</h1>
+        <p>Enter your account details to continue.</p>
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button class="button-primary" type="submit">Sign in</button>
+            <button type="submit">Log in</button>
         </form>
-        <p class="form-footnote">New to BBMS? <a href="{% url 'register' %}">Create an account</a>.</p>
+        <p>New donor? <a href="{% url 'register' %}">Create an account</a>.</p>
     </section>
 {% endblock %}

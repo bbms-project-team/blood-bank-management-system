@@ -1,19 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}My donor profile | BBMS{% endblock %}
-{% block page_class %}page-shell-narrow{% endblock %}
+{% block title %}My donor profile{% endblock %}
 
 {% block content %}
-    <div class="page-heading">
-        <p class="eyebrow">Donor details</p>
-        <h1>My donor profile</h1>
-        <p>Keep your details current so blood bank staff can contact you when needed.</p>
-    </div>
-    <section class="panel form-panel">
+    <section class="card" aria-labelledby="page-title">
+        <h1 id="page-title">My donor profile</h1>
+        <p>Keep your contact details and donation history current.</p>
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}
-            <button class="button-primary" type="submit">Save profile</button>
+            <button type="submit">Save profile</button>
         </form>
     </section>
 {% endblock %}
