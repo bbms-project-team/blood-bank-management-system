@@ -20,8 +20,8 @@ from .services import issue_request as issue_request_service
 @role_required(User.Role.REQUESTER, User.Role.ADMIN)
 def submit_request(request):
     """
-    Allow only authorized requesters and administrators
-    to submit valid blood requests.
+    Allow authorized users to submit valid blood requests.
+    Create a notification and audit log after submission.
     """
     if request.method == "POST":
         form = BloodRequestForm(request.POST)
@@ -30,8 +30,6 @@ def submit_request(request):
             with transaction.atomic():
                 blood_request = form.save(commit=False)
 
-                # Always assign the logged-in user.
-                # Never accept requester identity from form input.
                 blood_request.requester = request.user
                 blood_request.status = BloodRequest.Status.PENDING
                 blood_request.save()
@@ -46,6 +44,15 @@ def submit_request(request):
                         "component": blood_request.component,
                         "units_required": blood_request.units_required,
                     },
+                )
+
+                RequestNotification.objects.create(
+                    request=blood_request,
+                    recipient=blood_request.requester,
+                    message=(
+                        f"Your blood request {blood_request.request_id} "
+                        "has been submitted successfully and is pending review."
+                    ),
                 )
 
             messages.success(
@@ -161,7 +168,10 @@ def decide_request(request, request_id):
             RequestNotification.objects.create(
                 request=blood_request,
                 recipient=blood_request.requester,
-                message=f"Your blood request was {decision.lower()}.",
+                message=(
+                    f"Your blood request has been "
+                    f"{decision.lower()}."
+                ),
             )
 
         messages.success(
@@ -183,7 +193,10 @@ def reserve_request(request, request_id):
     except (BloodRequest.DoesNotExist, WorkflowError) as exc:
         messages.error(request, str(exc) or "Request was not found.")
     else:
-        messages.success(request, "Matching units reserved for this request.")
+        messages.success(
+            request,
+            "Matching units reserved for this request.",
+        )
 
     return redirect("my_requests")
 
@@ -198,7 +211,10 @@ def issue_request(request, request_id):
     except (BloodRequest.DoesNotExist, WorkflowError) as exc:
         messages.error(request, str(exc) or "Request was not found.")
     else:
-        messages.success(request, "Reserved units issued and request completed.")
+        messages.success(
+            request,
+            "Reserved units issued and request completed.",
+        )
 
     return redirect("my_requests")
 
