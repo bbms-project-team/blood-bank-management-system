@@ -118,7 +118,7 @@ def _reserve_request_once(request_id, actor):
 
     return blood_request
 
-
+# reserve_request
 def reserve_request(request_id, actor):
     """Reserve blood units with retry handling and operational logging."""
 
