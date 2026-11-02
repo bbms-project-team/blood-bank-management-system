@@ -94,6 +94,13 @@ class BloodRequestTests(TestCase):
         )
         self.assertIsNotNone(blood_request.request_id)
 
+        notification = RequestNotification.objects.get(
+            request=blood_request,
+            recipient=self.requester,
+        )
+        self.assertIn("submitted successfully", notification.message)
+        self.assertIn("pending review", notification.message)
+
     def test_donor_cannot_submit_blood_request(self):
         self.client.force_login(self.donor)
 
@@ -490,10 +497,6 @@ class BloodRequestTests(TestCase):
 
         self.assertEqual(unit.status, "RESERVED")
         self.assertEqual(request.status, BloodRequest.Status.RESERVED)
-            # ==================================================
-    # ACCESS CONTROL, NOTIFICATION AND AUDIT TESTS
-    # ==================================================
-
     def test_requester_cannot_access_staff_reports_or_admin_audit(self):
         self.client.force_login(self.requester)
 
@@ -764,7 +767,8 @@ class BloodRequestTests(TestCase):
         self.assertFalse(
             AuditLog.objects.filter(action="REQUEST_ISSUED").exists()
         )
-            # ==================================================
+
+    # ==================================================
     # ISSUE 22: BLOOD ISSUE AND DISPATCH VIEW TESTS
     # ==================================================
 
