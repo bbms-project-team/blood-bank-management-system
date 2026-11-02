@@ -22,6 +22,7 @@
                 {% if user.is_authenticated %}
                     {% if user.role == "DONOR" %}
                         <a href="{% url 'my_profile' %}">My profile</a>
+                        <a href="{% url 'book_donation' %}">Book donation</a>
                     {% endif %}
                     {% if user.role == "STAFF" or user.role == "ADMIN" %}
                         <a href="{% url 'donor_list' %}">Donors</a>
@@ -33,6 +34,7 @@
                     {% endif %}
                     {% if user.role == "ADMIN" %}
                         <a href="{% url 'audit_log' %}">Audit log</a>
+                        {% if user.is_staff %}<a href="{% url 'admin:accounts_user_changelist' %}">Manage users</a>{% endif %}
                     {% endif %}
                     {% if user.role == "REQUESTER" %}
                         <a href="{% url 'inventory' %}">Availability</a>
