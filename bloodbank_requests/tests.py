@@ -1,4 +1,3 @@
-
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from datetime import timedelta
@@ -14,6 +13,7 @@ from bloodbank_requests.models import (
     AuditLog,
     RequestNotification,
 )
+from bloodbank_requests.compatibility import is_blood_compatible
 from bloodbank_requests.services import (
     WorkflowError,
     reserve_request,
@@ -653,6 +653,117 @@ class BloodRequestTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["available_units"], 1)
         self.assertEqual(response.context["donation_count"], 1)
+
+    # ==================================================
+    # ISSUE 21: BLOOD-GROUP COMPATIBILITY TESTS
+    # Conservative interim policy: exact blood-group match only.
+    # ==================================================
+
+    def test_exact_blood_group_match_is_compatible(self):
+        self.assertTrue(
+            is_blood_compatible("A+", "A+", "WHOLE_BLOOD")
+        )
+
+    def test_different_blood_groups_are_incompatible(self):
+        self.assertFalse(
+            is_blood_compatible("O-", "A+", "WHOLE_BLOOD")
+        )
+
+    def test_invalid_donor_blood_group_is_incompatible(self):
+        self.assertFalse(
+            is_blood_compatible("X+", "A+", "WHOLE_BLOOD")
+        )
+
+    def test_invalid_recipient_blood_group_is_incompatible(self):
+        self.assertFalse(
+            is_blood_compatible("A+", "X+", "WHOLE_BLOOD")
+        )
+
+    def test_invalid_component_is_incompatible(self):
+        self.assertFalse(
+            is_blood_compatible("A+", "A+", "UNKNOWN_COMPONENT")
+        )
+
+    def test_incompatible_available_unit_is_not_reserved(self):
+        request = self.approved_request(units=1)
+        incompatible_unit = self.create_unit(
+            blood_group="B+",
+            component="WHOLE_BLOOD",
+        )
+
+        with self.assertRaises(WorkflowError):
+            reserve_request(request.request_id, self.staff)
+
+        request.refresh_from_db()
+        incompatible_unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.APPROVED,
+        )
+        self.assertEqual(incompatible_unit.status, "AVAILABLE")
+        self.assertIsNone(incompatible_unit.reserved_for)
+
+        self.assertFalse(
+            AuditLog.objects.filter(action="REQUEST_RESERVED").exists()
+        )
+        self.assertFalse(
+            RequestNotification.objects.filter(request=request).exists()
+        )
+
+    def test_compatible_unit_can_be_reserved(self):
+        request = self.approved_request(units=1)
+        compatible_unit = self.create_unit(
+            blood_group="A+",
+            component="WHOLE_BLOOD",
+        )
+
+        reserve_request(request.request_id, self.staff)
+
+        request.refresh_from_db()
+        compatible_unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.RESERVED,
+        )
+        self.assertEqual(compatible_unit.status, "RESERVED")
+        self.assertEqual(compatible_unit.reserved_for, request)
+
+        self.assertTrue(
+            AuditLog.objects.filter(action="REQUEST_RESERVED").exists()
+        )
+        self.assertTrue(
+            RequestNotification.objects.filter(request=request).exists()
+        )
+
+    def test_incompatible_reserved_unit_cannot_be_issued(self):
+        request = self.approved_request(units=1)
+        unit = self.create_unit(
+            blood_group="A+",
+            component="WHOLE_BLOOD",
+        )
+        reserve_request(request.request_id, self.staff)
+
+        # Simulate inconsistent/corrupted reservation data.
+        Donation.objects.filter(pk=unit.donation_id).update(
+            blood_group="B+"
+        )
+
+        with self.assertRaises(WorkflowError):
+            issue_request(request.request_id, self.staff)
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+
+        self.assertEqual(
+            request.status,
+            BloodRequest.Status.RESERVED,
+        )
+        self.assertEqual(unit.status, "RESERVED")
+        self.assertFalse(
+            AuditLog.objects.filter(action="REQUEST_ISSUED").exists()
+        )
 
 
 class ConcurrentReservationTests(TransactionTestCase):
