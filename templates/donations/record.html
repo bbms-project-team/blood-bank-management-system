@@ -1,25 +1,15 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Record Donation | BBMS</title>
-</head>
-<body>
-    <h1>Record Accepted Donation</h1>
+{% block title %}Record donation{% endblock %}
 
-    {% if messages %}
-        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Record Donation</button>
-    </form>
-
-    <p><a href="{% url 'inventory' %}">View Inventory</a></p>
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% block content %}
+    <section class="card" aria-labelledby="page-title">
+        <h1 id="page-title">Record accepted donation</h1>
+        <p>Recorded donations are added to the blood inventory.</p>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Record donation</button>
+        </form>
+    </section>
+{% endblock %}

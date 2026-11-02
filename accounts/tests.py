@@ -1,4 +1,7 @@
 
+from django.contrib.admin.models import ADDITION, LogEntry
+from django.contrib.auth.models import Permission
+from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase
 from django.urls import reverse
 
@@ -133,3 +136,59 @@ class AccountsTests(TestCase):
         from django.conf import settings
         self.assertEqual(settings.SESSION_COOKIE_AGE, 15 * 60)
         self.assertTrue(settings.SESSION_EXPIRE_AT_BROWSER_CLOSE)
+
+    def test_admin_can_add_users_and_the_action_is_logged(self):
+        admin_user = User.objects.create_superuser(
+            username="bbms_admin",
+            email="admin@example.com",
+            password="StrongPass123!",
+            role=User.Role.ADMIN,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(reverse("admin:accounts_user_changelist"))
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            reverse("admin:accounts_user_add"),
+            {
+                "username": "manageduser",
+                "password1": "ManagedPass123!",
+                "password2": "ManagedPass123!",
+                "email": "managed@example.com",
+                "role": User.Role.DONOR,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        managed_user = User.objects.get(username="manageduser")
+        self.assertTrue(
+            LogEntry.objects.filter(
+                user=admin_user,
+                object_id=str(managed_user.pk),
+                action_flag=ADDITION,
+            ).exists()
+        )
+
+    def test_regular_user_cannot_access_admin_user_management(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("admin:accounts_user_changelist"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("admin:login"), response.url)
+
+    def test_staff_role_cannot_manage_users_even_with_django_permissions(self):
+        staff_user = User.objects.create_user(
+            username="staff_admin_attempt",
+            email="staff-admin@example.com",
+            password="StrongPass123!",
+            role=User.Role.STAFF,
+            is_staff=True,
+        )
+        user_content_type = ContentType.objects.get_for_model(User)
+        staff_user.user_permissions.set(
+            Permission.objects.filter(content_type=user_content_type)
+        )
+        self.client.force_login(staff_user)
+
+        response = self.client.get(reverse("admin:accounts_user_changelist"))
+
+        self.assertEqual(response.status_code, 403)

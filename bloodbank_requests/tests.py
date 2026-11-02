@@ -66,7 +66,7 @@ class BloodRequestTests(TestCase):
 
         response = self.client.post(
             reverse("submit_request"),
-            self.request_data,
+            {**self.request_data, "requester": self.staff.pk},
         )
 
         self.assertRedirects(response, reverse("my_requests"))
@@ -79,6 +79,20 @@ class BloodRequestTests(TestCase):
             BloodRequest.Status.PENDING,
         )
         self.assertIsNotNone(blood_request.request_id)
+
+    def test_malformed_request_fields_are_rejected(self):
+        self.client.force_login(self.requester)
+        invalid_data = self.request_data.copy()
+        invalid_data.update({
+            "blood_group": "INVALID",
+            "component": "INVALID",
+            "units_required": "-1",
+        })
+
+        response = self.client.post(reverse("submit_request"), invalid_data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(BloodRequest.objects.count(), 0)
 
     def test_staff_can_approve_pending_request(self):
         blood_request = self.create_blood_request()
@@ -101,6 +115,9 @@ class BloodRequestTests(TestCase):
         )
         self.assertEqual(blood_request.decision_by, self.staff)
         self.assertIsNotNone(blood_request.decision_at)
+        notification = RequestNotification.objects.get(request=blood_request)
+        self.assertEqual(notification.recipient, self.requester)
+        self.assertIn("approved", notification.message)
 
     def test_staff_can_reject_pending_request(self):
         blood_request = self.create_blood_request()
@@ -123,6 +140,25 @@ class BloodRequestTests(TestCase):
         )
         self.assertEqual(blood_request.decision_by, self.staff)
         self.assertIsNotNone(blood_request.decision_at)
+        notification = RequestNotification.objects.get(request=blood_request)
+        self.assertEqual(notification.recipient, self.requester)
+        self.assertIn("rejected", notification.message)
+
+    def test_invalid_decision_returns_standard_json_error(self):
+        request = self.create_blood_request()
+        self.client.force_login(self.staff)
+
+        response = self.client.post(
+            reverse("decide_request", kwargs={"request_id": request.request_id}),
+            {"decision": "INVALID"},
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json(),
+            {"error": {"code": "invalid_decision", "message": "Invalid decision."}},
+        )
 
     def test_already_decided_request_cannot_be_changed(self):
         blood_request = self.create_blood_request()
@@ -160,7 +196,10 @@ class BloodRequestTests(TestCase):
     def test_donor_cannot_submit_blood_request(self):
         self.client.force_login(self.donor)
 
-        response = self.client.get(reverse("submit_request"))
+        response = self.client.post(
+            reverse("submit_request"),
+            self.request_data,
+        )
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(BloodRequest.objects.count(), 0)
@@ -220,6 +259,9 @@ class BloodRequestTests(TestCase):
             self.assertEqual(unit.reserved_for, request)
         self.assertTrue(AuditLog.objects.filter(action="REQUEST_RESERVED").exists())
         self.assertEqual(RequestNotification.objects.filter(request=request).count(), 1)
+        notification = RequestNotification.objects.get(request=request)
+        self.assertEqual(notification.recipient, self.requester)
+        self.assertIn("reserved", notification.message)
 
     def test_reservation_rolls_back_when_matching_stock_is_insufficient(self):
         request = self.approved_request(units=2)
@@ -232,6 +274,29 @@ class BloodRequestTests(TestCase):
         self.assertEqual(unit.status, "AVAILABLE")
         self.assertFalse(AuditLog.objects.filter(action="REQUEST_RESERVED").exists())
 
+    def test_reservation_api_error_is_consistent_and_logged(self):
+        request = self.approved_request()
+        self.client.force_login(self.staff)
+
+        with self.assertLogs("bloodbank_requests.views", level="WARNING") as logs:
+            response = self.client.post(
+                reverse("reserve_request", kwargs={"request_id": request.request_id}),
+                HTTP_ACCEPT="application/json",
+            )
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            response.json(),
+            {
+                "error": {
+                    "code": "reservation_failed",
+                    "message": "There are not enough matching, unexpired units.",
+                }
+            },
+        )
+        self.assertIn(str(request.request_id), logs.output[0])
+        self.assertNotIn("password", logs.output[0].lower())
+
     def test_reservation_rejects_expired_and_nonmatching_units(self):
         request = self.approved_request()
         expired = self.create_unit(expiry=timezone.localdate() - timedelta(days=1))
@@ -240,6 +305,21 @@ class BloodRequestTests(TestCase):
             reserve_request(request.request_id, self.staff)
         expired.refresh_from_db()
         self.assertEqual(expired.status, "AVAILABLE")
+
+    def test_incompatible_blood_group_is_not_reserved(self):
+        request = self.approved_request()
+        unit = self.create_unit(blood_group="B+")
+
+        with self.assertRaises(WorkflowError):
+            reserve_request(request.request_id, self.staff)
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+        self.assertEqual(request.status, BloodRequest.Status.APPROVED)
+        self.assertEqual(unit.status, "AVAILABLE")
+        self.assertFalse(
+            AuditLog.objects.filter(action="REQUEST_RESERVED").exists()
+        )
 
     def test_request_cannot_be_reserved_twice(self):
         request = self.approved_request()
@@ -264,6 +344,50 @@ class BloodRequestTests(TestCase):
         with self.assertRaises(WorkflowError):
             issue_request(request.request_id, self.staff)
         self.assertEqual(AuditLog.objects.filter(action="REQUEST_ISSUED").count(), 1)
+        dispatch_log = AuditLog.objects.get(action="REQUEST_ISSUED")
+        self.assertEqual(
+            set(dispatch_log.details["unit_codes"]),
+            {str(unit.unit_code) for unit in units},
+        )
+        self.assertEqual(
+            RequestNotification.objects.filter(request=request).count(), 2
+        )
+        self.assertTrue(
+            RequestNotification.objects.filter(
+                request=request,
+                recipient=self.requester,
+                message__icontains="issued",
+            ).exists()
+        )
+
+    def test_approved_request_cannot_be_issued_before_units_are_reserved(self):
+        request = self.approved_request()
+        unit = self.create_unit()
+
+        with self.assertRaises(WorkflowError):
+            issue_request(request.request_id, self.staff)
+
+        request.refresh_from_db()
+        unit.refresh_from_db()
+        self.assertEqual(request.status, BloodRequest.Status.APPROVED)
+        self.assertEqual(unit.status, "AVAILABLE")
+        self.assertFalse(AuditLog.objects.filter(action="REQUEST_ISSUED").exists())
+
+    def test_requester_cannot_dispatch_reserved_units(self):
+        request = self.approved_request()
+        unit = self.create_unit()
+        reserve_request(request.request_id, self.staff)
+        self.client.force_login(self.requester)
+
+        response = self.client.post(
+            reverse("issue_request", kwargs={"request_id": request.request_id})
+        )
+
+        self.assertEqual(response.status_code, 403)
+        request.refresh_from_db()
+        unit.refresh_from_db()
+        self.assertEqual(request.status, BloodRequest.Status.RESERVED)
+        self.assertEqual(unit.status, "RESERVED")
 
     def test_expired_reserved_unit_cannot_be_issued_and_stays_reserved(self):
         request = self.approved_request()
@@ -308,9 +432,11 @@ class BloodRequestTests(TestCase):
             password="TestPass123!",
             role=User.Role.REQUESTER,
         )
+        other_request_data = self.request_data.copy()
+        other_request_data["patient_name"] = "Private Patient"
         other_request = BloodRequest.objects.create(
             requester=other,
-            **self.request_data,
+            **other_request_data,
         )
         RequestNotification.objects.create(
             request=other_request,
@@ -321,6 +447,7 @@ class BloodRequestTests(TestCase):
         response = self.client.get(reverse("my_requests"))
         self.assertContains(response, "Your request was approved.")
         self.assertNotContains(response, "Private other request update.")
+        self.assertNotContains(response, "Private Patient")
 
     def test_staff_alerts_show_low_stock_and_expiry(self):
         soon = self.create_unit(expiry=timezone.localdate() + timedelta(days=3))

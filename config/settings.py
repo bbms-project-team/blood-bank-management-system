@@ -20,13 +20,28 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-1=b%km6t6#dsw(3b868cn)z%=%b6hvqjho(w(f8llnwknb)&y*'
+# Local development stays easy to run; deployments must provide their own
+# secret key, host list, and DEBUG setting through environment variables.
+DEBUG = os.environ.get("DJANGO_DEBUG", "true").strip().lower() in {
+    "1", "true", "yes", "on",
+}
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if not DEBUG:
+        from django.core.exceptions import ImproperlyConfigured
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+        raise ImproperlyConfigured(
+            "Set DJANGO_SECRET_KEY when DJANGO_DEBUG is disabled."
+        )
+    SECRET_KEY = "django-insecure-local-development-only-key"
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get(
+        "DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]"
+    ).split(",")
+    if host.strip()
+]
 
 
 # Application definition
@@ -120,6 +135,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -141,6 +157,25 @@ SESSION_EXPIRE_AT_BROWSER_CLOSE = True
 # configured by the deployment environment before production use.
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = os.environ.get(
+    "DJANGO_SECURE_SSL_REDIRECT", str(not DEBUG)
+).strip().lower() in {"1", "true", "yes", "on"}
+SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "0"))
 
 # Low-stock alerts are based on the count of available, unexpired units.
 BBMS_LOW_STOCK_THRESHOLD = int(os.environ.get("BBMS_LOW_STOCK_THRESHOLD", "5"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+    },
+    "loggers": {
+        "bloodbank_requests": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}

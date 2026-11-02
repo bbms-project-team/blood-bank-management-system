@@ -1,71 +1,63 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Blood Requests</title>
-</head>
-<body>
-    <h1>Blood Requests</h1>
+{% block title %}{% if user.role == "REQUESTER" %}My requests{% else %}Blood requests{% endif %}{% endblock %}
 
-    {% if messages %}
-        {% for message in messages %}
-            <p>{{ message }}</p>
-        {% endfor %}
-    {% endif %}
+{% block content %}
+    <h1>{% if user.role == "REQUESTER" %}My blood requests{% else %}Blood requests{% endif %}</h1>
 
     {% if user.role == "REQUESTER" %}
-        <p><a href="{% url 'submit_request' %}">Submit New Request</a></p>
-        {% for notification in notifications %}
-            <p role="status">{{ notification.message }} ({{ notification.created_at }})</p>
-        {% endfor %}
+        <div class="action-list"><a class="button" href="{% url 'submit_request' %}">Submit new request</a></div>
+        {% if notifications %}
+            <section aria-label="Unread request updates" class="messages">
+                {% for notification in notifications %}
+                    <p class="message" role="status">{{ notification.message }} <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at }}</time></p>
+                {% endfor %}
+            </section>
+        {% endif %}
     {% endif %}
 
     {% for item in requests %}
-        <hr>
-        <p><strong>Request ID:</strong> {{ item.request_id }}</p>
-        <p><strong>Patient:</strong> {{ item.patient_name }}</p>
-        <p><strong>Hospital:</strong> {{ item.hospital_name }}</p>
-        <p><strong>Blood group:</strong> {{ item.blood_group }}</p>
-        <p><strong>Component:</strong> {{ item.component }}</p>
-        <p><strong>Units required:</strong> {{ item.units_required }}</p>
-        <p><strong>Status:</strong> {{ item.get_status_display }}</p>
-        <p><strong>Submitted:</strong> {{ item.created_at }}</p>
+        <article class="request-card" aria-labelledby="request-{{ item.request_id }}">
+            <h2 id="request-{{ item.request_id }}">Request {{ item.request_id }}</h2>
+            <div class="request-details">
+                <p><strong>Patient:</strong> {{ item.patient_name }}</p>
+                <p><strong>Hospital:</strong> {{ item.hospital_name }}</p>
+                <p><strong>Blood group:</strong> {{ item.blood_group }}</p>
+                <p><strong>Component:</strong> {{ item.get_component_display|default:item.component }}</p>
+                <p><strong>Units required:</strong> {{ item.units_required }}</p>
+                <p><strong>Status:</strong> {{ item.get_status_display }}</p>
+                <p><strong>Submitted:</strong> <time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at }}</time></p>
+                {% if item.decision_by %}
+                    <p><strong>Decision by:</strong> {{ item.decision_by.username }}</p>
+                    <p><strong>Decision time:</strong> <time datetime="{{ item.decision_at|date:'c' }}">{{ item.decision_at }}</time></p>
+                {% endif %}
+            </div>
 
-        {% if item.decision_by %}
-            <p><strong>Decision by:</strong> {{ item.decision_by.username }}</p>
-            <p><strong>Decision time:</strong> {{ item.decision_at }}</p>
-        {% endif %}
-
-        {% if user.role == "STAFF" or user.role == "ADMIN" %}
-            {% if item.status == "PENDING" %}
-                <form method="post" action="{% url 'decide_request' item.request_id %}">
-                    {% csrf_token %}
-                    <button type="submit" name="decision" value="APPROVED">
-                        Approve
-                    </button>
-                    <button type="submit" name="decision" value="REJECTED">
-                        Reject
-                    </button>
-                </form>
+            {% if user.role == "STAFF" or user.role == "ADMIN" %}
+                <div class="inline-actions">
+                    {% if item.status == "PENDING" %}
+                        <form method="post" action="{% url 'decide_request' item.request_id %}">
+                            {% csrf_token %}
+                            <button type="submit" name="decision" value="APPROVED">Approve request</button>
+                            <button class="button-secondary" type="submit" name="decision" value="REJECTED">Reject request</button>
+                        </form>
+                    {% endif %}
+                    {% if item.status == "APPROVED" %}
+                        <form method="post" action="{% url 'reserve_request' item.request_id %}">
+                            {% csrf_token %}
+                            <button type="submit">Reserve matching units</button>
+                        </form>
+                    {% endif %}
+                    {% if item.status == "RESERVED" %}
+                        <form method="post" action="{% url 'issue_request' item.request_id %}">
+                            {% csrf_token %}
+                            <button type="submit">Issue or dispatch reserved units</button>
+                        </form>
+                    {% endif %}
+                </div>
             {% endif %}
-            {% if item.status == "APPROVED" %}
-                <form method="post" action="{% url 'reserve_request' item.request_id %}">
-                    {% csrf_token %}
-                    <button type="submit">Reserve matching units</button>
-                </form>
-            {% endif %}
-            {% if item.status == "RESERVED" %}
-                <form method="post" action="{% url 'issue_request' item.request_id %}">
-                    {% csrf_token %}
-                    <button type="submit">Issue / dispatch reserved units</button>
-                </form>
-            {% endif %}
-        {% endif %}
+        </article>
     {% empty %}
         <p>No blood requests found.</p>
     {% endfor %}
-
-    <p><a href="/">Home</a></p>
-</body>
-</html>
+{% endblock %}

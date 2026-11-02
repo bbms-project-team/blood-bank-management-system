@@ -1,0 +1,78 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#9f2335">
+    <title>{% block title %}Blood Bank Management System{% endblock %} | BBMS</title>
+    <link rel="stylesheet" href="{% static 'bbms/css/app.css' %}">
+    <link rel="icon" href="{% static 'bbms/favicon.svg' %}" type="image/svg+xml">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="{% url 'home' %}">
+                <span class="brand-mark" aria-hidden="true">+</span>
+                <span>Blood Bank <strong>Management System</strong></span>
+            </a>
+            <nav class="site-nav" aria-label="Main navigation">
+                {% if user.is_authenticated %}
+                    {% if user.role == "DONOR" %}
+                        <a href="{% url 'my_profile' %}">My profile</a>
+                    {% endif %}
+                    {% if user.role == "STAFF" or user.role == "ADMIN" %}
+                        <a href="{% url 'donor_list' %}">Donors</a>
+                        <a href="{% url 'record_donation' %}">Record donation</a>
+                        <a href="{% url 'inventory' %}">Inventory</a>
+                        <a href="{% url 'my_requests' %}">Requests</a>
+                        <a href="{% url 'alerts' %}">Alerts</a>
+                        <a href="{% url 'reports' %}">Reports</a>
+                    {% endif %}
+                    {% if user.role == "ADMIN" %}
+                        <a href="{% url 'audit_log' %}">Audit log</a>
+                    {% endif %}
+                    {% if user.role == "REQUESTER" %}
+                        <a href="{% url 'inventory' %}">Availability</a>
+                        <a href="{% url 'submit_request' %}">New request</a>
+                        <a href="{% url 'my_requests' %}">My requests</a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'login' %}">Log in</a>
+                    <a class="button button-small" href="{% url 'register' %}">Create account</a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <main id="main-content" class="page-shell" tabindex="-1">
+        {% if user.is_authenticated %}
+            <p class="user-context">Signed in as <strong>{{ user.username }}</strong> · {{ user.get_role_display }}</p>
+        {% endif %}
+        {% if messages %}
+            <div class="messages" aria-label="Notifications">
+                {% for message in messages %}
+                    <p class="message message-{{ message.tags|default:'info' }}" role="{% if 'error' in message.tags %}alert{% else %}status{% endif %}">{{ message }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <span>Blood Bank Management System</span>
+            {% if user.is_authenticated %}
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button class="link-button" type="submit">Log out</button>
+                </form>
+            {% else %}
+                <a href="{% url 'home' %}">Home</a>
+            {% endif %}
+        </div>
+    </footer>
+</body>
+</html>

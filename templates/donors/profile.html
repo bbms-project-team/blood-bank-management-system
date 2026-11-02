@@ -1,24 +1,15 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>My Donor Profile | BBMS</title>
-</head>
-<body>
-    <h1>My Donor Profile</h1>
+{% block title %}My donor profile{% endblock %}
 
-    {% if messages %}
-        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
-    {% endif %}
-
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Save Profile</button>
-    </form>
-
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% block content %}
+    <section class="card" aria-labelledby="page-title">
+        <h1 id="page-title">My donor profile</h1>
+        <p>Keep your contact details and donation history current.</p>
+        <form method="post">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit">Save profile</button>
+        </form>
+    </section>
+{% endblock %}

@@ -1,20 +1,51 @@
-<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Inventory Alerts</title></head>
-<body>
-    <h1>Inventory Alerts</h1>
-    <p>Low stock threshold: fewer than {{ threshold }} available, unexpired units per blood group and component.</p>
-    <h2>Low stock</h2>
-    {% for item in stock_alerts %}
-        <p>{{ item.donation__blood_group }} {{ item.donation__component }}: {{ item.units }} units</p>
-    {% empty %}<p>No low-stock alerts.</p>{% endfor %}
-    <h2>Expired units that remain available or reserved</h2>
-    {% for unit in expired_units %}<p>{{ unit.unit_code }} — {{ unit.donation.blood_group }} — expired {{ unit.expiry_date }}</p>
-    {% empty %}<p>No expired available or reserved units.</p>{% endfor %}
-    <h2>Units expiring within 7 days</h2>
-    {% for unit in expiring_units %}<p>{{ unit.unit_code }} — {{ unit.donation.blood_group }} — expires {{ unit.expiry_date }}</p>
-    {% empty %}<p>No units expiring soon.</p>{% endfor %}
+{% extends "base.html" %}
+
+{% block title %}Inventory alerts{% endblock %}
+
+{% block content %}
+    <h1>Inventory alerts</h1>
+    <p class="lead">Low-stock threshold: fewer than {{ threshold }} available, unexpired units per blood group and component.</p>
+
+    <section aria-labelledby="low-stock-title">
+        <h2 id="low-stock-title">Low stock</h2>
+        <div class="card-grid">
+            {% for item in stock_alerts %}
+                <article class="panel">
+                    <h3>{{ item.donation__blood_group }} · {{ item.donation__component }}</h3>
+                    <p>{{ item.units }} available units</p>
+                </article>
+            {% empty %}
+                <p>No low-stock alerts.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section aria-labelledby="expired-title">
+        <h2 id="expired-title">Expired units still marked available or reserved</h2>
+        <div class="card-grid">
+            {% for unit in expired_units %}
+                <article class="panel">
+                    <h3>Unit {{ unit.unit_code }}</h3>
+                    <p>{{ unit.donation.blood_group }} · Expired {{ unit.expiry_date }}</p>
+                </article>
+            {% empty %}
+                <p>No expired available or reserved units.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section aria-labelledby="expiring-title">
+        <h2 id="expiring-title">Units expiring within 7 days</h2>
+        <div class="card-grid">
+            {% for unit in expiring_units %}
+                <article class="panel">
+                    <h3>Unit {{ unit.unit_code }}</h3>
+                    <p>{{ unit.donation.blood_group }} · Expires {{ unit.expiry_date }}</p>
+                </article>
+            {% empty %}
+                <p>No units expiring soon.</p>
+            {% endfor %}
+        </div>
+    </section>
     <p>Request status changes are shown to requesters in their request list.</p>
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% endblock %}

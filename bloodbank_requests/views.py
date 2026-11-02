@@ -1,11 +1,13 @@
 
 from datetime import timedelta
+import logging
 
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Count
-from django.shortcuts import render, redirect, get_object_or_404
+from django.http import JsonResponse
+from django.shortcuts import render, redirect
 from django.utils import timezone
 
 from accounts.decorators import role_required
@@ -15,6 +17,26 @@ from .forms import BloodRequestForm
 from .models import AuditLog, BloodRequest, RequestNotification
 from .services import WorkflowError, reserve_request as reserve_request_service
 from .services import issue_request as issue_request_service
+
+logger = logging.getLogger(__name__)
+
+
+def _workflow_error(request, operation, code, message, status):
+    request_id = request.resolver_match.kwargs.get("request_id")
+    logger.warning(
+        "Blood request operation failed operation=%s code=%s request_id=%s user_id=%s",
+        operation,
+        code,
+        request_id,
+        request.user.pk,
+    )
+    if request.accepts("application/json"):
+        return JsonResponse(
+            {"error": {"code": code, "message": message}},
+            status=status,
+        )
+    messages.error(request, message)
+    return redirect("my_requests")
 
 
 @role_required(User.Role.REQUESTER, User.Role.ADMIN)
@@ -71,57 +93,82 @@ def my_requests(request):
 
 @role_required(User.Role.STAFF, User.Role.ADMIN)
 def decide_request(request, request_id):
-    blood_request = get_object_or_404(
-        BloodRequest,
-        request_id=request_id,
-    )
-
-    if request.method == "POST":
-        decision = request.POST.get("decision")
-
-        if decision not in [
-            BloodRequest.Status.APPROVED,
-            BloodRequest.Status.REJECTED,
-        ]:
-            messages.error(request, "Invalid decision.")
-            return redirect("my_requests")
-
-        if blood_request.status != BloodRequest.Status.PENDING:
-            messages.error(
-                request,
-                "This request has already been decided.",
-            )
-            return redirect("my_requests")
-
-        with transaction.atomic():
-            updated = BloodRequest.objects.filter(
-                pk=blood_request.pk,
-                status=BloodRequest.Status.PENDING,
-            ).update(
-                status=decision,
-                decision_by=request.user,
-                decision_at=timezone.now(),
-            )
-            if updated != 1:
-                messages.error(request, "This request has already been decided.")
-                return redirect("my_requests")
-            AuditLog.objects.create(
-                actor=request.user,
-                action=f"REQUEST_{decision}",
-                object_type="BloodRequest",
-                object_id=str(blood_request.request_id),
-            )
-            RequestNotification.objects.create(
-                request=blood_request,
-                recipient=blood_request.requester,
-                message=f"Your blood request was {decision.lower()}.",
-            )
-
-        messages.success(
+    try:
+        blood_request = BloodRequest.objects.get(request_id=request_id)
+    except BloodRequest.DoesNotExist:
+        return _workflow_error(
             request,
-            f"Request {blood_request.request_id} "
-            f"{decision.lower()} successfully.",
+            "decide",
+            "request_not_found",
+            "Request was not found.",
+            404,
         )
+
+    if request.method != "POST":
+        return _workflow_error(
+            request,
+            "decide",
+            "method_not_allowed",
+            "Submit this action using POST.",
+            405,
+        )
+
+    decision = request.POST.get("decision")
+    if decision not in [
+        BloodRequest.Status.APPROVED,
+        BloodRequest.Status.REJECTED,
+    ]:
+        return _workflow_error(
+            request,
+            "decide",
+            "invalid_decision",
+            "Invalid decision.",
+            400,
+        )
+
+    if blood_request.status != BloodRequest.Status.PENDING:
+        return _workflow_error(
+            request,
+            "decide",
+            "request_already_decided",
+            "This request has already been decided.",
+            409,
+        )
+
+    with transaction.atomic():
+        updated = BloodRequest.objects.filter(
+            pk=blood_request.pk,
+            status=BloodRequest.Status.PENDING,
+        ).update(
+            status=decision,
+            decision_by=request.user,
+            decision_at=timezone.now(),
+        )
+        if updated != 1:
+            return _workflow_error(
+                request,
+                "decide",
+                "request_already_decided",
+                "This request has already been decided.",
+                409,
+            )
+        AuditLog.objects.create(
+            actor=request.user,
+            action=f"REQUEST_{decision}",
+            object_type="BloodRequest",
+            object_id=str(blood_request.request_id),
+        )
+        RequestNotification.objects.create(
+            request=blood_request,
+            recipient=blood_request.requester,
+            message=f"Your blood request was {decision.lower()}.",
+        )
+
+    messages.success(
+        request,
+        f"Request {blood_request.request_id} "
+        f"{decision.lower()} successfully.",
+    )
 
     return redirect("my_requests")
 
@@ -129,11 +176,23 @@ def decide_request(request, request_id):
 @role_required(User.Role.STAFF, User.Role.ADMIN)
 def reserve_request(request, request_id):
     if request.method != "POST":
-        return redirect("my_requests")
+        return _workflow_error(
+            request, "reserve", "method_not_allowed", "Submit this action using POST.", 405
+        )
     try:
         reserve_request_service(request_id, request.user)
-    except (BloodRequest.DoesNotExist, WorkflowError) as exc:
-        messages.error(request, str(exc) or "Request was not found.")
+    except BloodRequest.DoesNotExist:
+        return _workflow_error(
+            request,
+            "reserve",
+            "request_not_found",
+            "Request was not found.",
+            404,
+        )
+    except WorkflowError as exc:
+        return _workflow_error(
+            request, "reserve", "reservation_failed", str(exc), 409
+        )
     else:
         messages.success(request, "Matching units reserved for this request.")
     return redirect("my_requests")
@@ -142,11 +201,23 @@ def reserve_request(request, request_id):
 @role_required(User.Role.STAFF, User.Role.ADMIN)
 def issue_request(request, request_id):
     if request.method != "POST":
-        return redirect("my_requests")
+        return _workflow_error(
+            request, "issue", "method_not_allowed", "Submit this action using POST.", 405
+        )
     try:
         issue_request_service(request_id, request.user)
-    except (BloodRequest.DoesNotExist, WorkflowError) as exc:
-        messages.error(request, str(exc) or "Request was not found.")
+    except BloodRequest.DoesNotExist:
+        return _workflow_error(
+            request,
+            "issue",
+            "request_not_found",
+            "Request was not found.",
+            404,
+        )
+    except WorkflowError as exc:
+        return _workflow_error(
+            request, "issue", "dispatch_failed", str(exc), 409
+        )
     else:
         messages.success(request, "Reserved units issued and request completed.")
     return redirect("my_requests")

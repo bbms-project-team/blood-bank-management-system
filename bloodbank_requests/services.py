@@ -13,14 +13,17 @@ class WorkflowError(Exception):
     """A request or inventory transition cannot be completed."""
 
 
+def _compatibility_filters(blood_request):
+    """Use exact group and component matches until a matrix is approved."""
+    return {
+        "donation__blood_group": blood_request.blood_group,
+        "donation__component": blood_request.component,
+    }
+
+
 @transaction.atomic
 def _reserve_request_once(request_id, actor):
-    """Reserve exact blood-group/component matches as one all-or-nothing step.
-
-    Exact group matching is intentionally conservative. The project SRS does
-    not provide a component-specific compatibility matrix; broader matching
-    needs an approved project policy.
-    """
+    """Reserve compatible units as one all-or-nothing step."""
     blood_request = BloodRequest.objects.select_for_update().get(
         request_id=request_id
     )
@@ -28,14 +31,14 @@ def _reserve_request_once(request_id, actor):
         raise WorkflowError("Only an approved request can be reserved.")
 
     today = timezone.localdate()
+    compatibility = _compatibility_filters(blood_request)
     candidates = list(
         BloodUnit.objects.select_for_update()
         .filter(
             status="AVAILABLE",
             expiry_date__gte=today,
             donation__accepted=True,
-            donation__blood_group=blood_request.blood_group,
-            donation__component=blood_request.component,
+            **compatibility,
         )
         .order_by("expiry_date", "created_at", "pk")[:blood_request.units_required]
     )
@@ -48,8 +51,7 @@ def _reserve_request_once(request_id, actor):
         status="AVAILABLE",
         expiry_date__gte=today,
         donation__accepted=True,
-        donation__blood_group=blood_request.blood_group,
-        donation__component=blood_request.component,
+        **compatibility,
     ).update(
         status="RESERVED",
         reserved_for=blood_request,
@@ -102,14 +104,14 @@ def _issue_request_once(request_id, actor):
         raise WorkflowError("Only a request with reserved units can be issued.")
 
     today = timezone.localdate()
+    compatibility = _compatibility_filters(blood_request)
     units = list(
         BloodUnit.objects.select_for_update().filter(
             reserved_for=blood_request,
             status="RESERVED",
             expiry_date__gte=today,
             donation__accepted=True,
-            donation__blood_group=blood_request.blood_group,
-            donation__component=blood_request.component,
+            **compatibility,
         )
     )
     if len(units) != blood_request.units_required:
@@ -122,8 +124,7 @@ def _issue_request_once(request_id, actor):
         status="RESERVED",
         expiry_date__gte=today,
         donation__accepted=True,
-        donation__blood_group=blood_request.blood_group,
-        donation__component=blood_request.component,
+        **compatibility,
     ).update(status="ISSUED", issued_at=now, issued_by=actor)
     if changed != blood_request.units_required:
         raise WorkflowError("Inventory changed while issuing; please retry.")
@@ -140,7 +141,10 @@ def _issue_request_once(request_id, actor):
         "REQUEST_ISSUED",
         "BloodRequest",
         blood_request.request_id,
-        {"unit_count": changed},
+        {
+            "unit_count": changed,
+            "unit_codes": [str(unit.unit_code) for unit in units],
+        },
     )
     RequestNotification.objects.create(
         request=blood_request,

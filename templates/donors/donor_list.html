@@ -1,24 +1,18 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Donors | BBMS</title>
-</head>
-<body>
-    <h1>Donor Profiles</h1>
+{% block title %}Donors{% endblock %}
 
-    {% for profile in profiles %}
-        <section>
-            <h3>{{ profile.user.get_full_name|default:profile.user.username }}</h3>
-            <p>Blood group: {{ profile.blood_group }}</p>
-            <p>Phone: {{ profile.phone }}</p>
-        </section>
-    {% empty %}
-        <p>No donor profiles have been created yet.</p>
-    {% endfor %}
-
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% block content %}
+    <h1>Donor profiles</h1>
+    <div class="card-grid">
+        {% for profile in profiles %}
+            <article class="donor-card" aria-labelledby="donor-{{ profile.pk }}">
+                <h2 id="donor-{{ profile.pk }}">{{ profile.user.get_full_name|default:profile.user.username }}</h2>
+                <p><strong>Blood group:</strong> {{ profile.blood_group }}</p>
+                <p><strong>Phone:</strong> <a href="tel:{{ profile.phone }}">{{ profile.phone }}</a></p>
+            </article>
+        {% empty %}
+            <p>No donor profiles have been created yet.</p>
+        {% endfor %}
+    </div>
+{% endblock %}

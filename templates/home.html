@@ -1,52 +1,32 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>BBMS</title>
-</head>
-<body>
-    <h1>Blood Bank Management System</h1>
+{% block title %}Home{% endblock %}
 
-    {% if messages %}
-        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
-    {% endif %}
-
-    {% if user.is_authenticated %}
-        <p>Welcome, {{ user.username }}!</p>
-        <p>Role: {{ user.get_role_display }}</p>
-
-        {% if user.role == "DONOR" %}
-            <p><a href="{% url 'my_profile' %}">My Donor Profile</a></p>
+{% block content %}
+    <section class="hero panel" aria-labelledby="welcome-title">
+        {% if user.is_authenticated %}
+            <h1 id="welcome-title">Welcome, {{ user.username }}</h1>
+            <p class="lead">Your blood bank workspace is ready.</p>
+            {% if user.role == "DONOR" %}
+                <div class="action-list"><a class="button" href="{% url 'my_profile' %}">Update donor profile</a></div>
+            {% elif user.role == "STAFF" or user.role == "ADMIN" %}
+                <div class="action-list">
+                    <a class="button" href="{% url 'inventory' %}">Open blood inventory</a>
+                    <a class="button button-secondary" href="{% url 'my_requests' %}">Review requests</a>
+                </div>
+            {% elif user.role == "REQUESTER" %}
+                <div class="action-list">
+                    <a class="button" href="{% url 'inventory' %}">Search blood availability</a>
+                    <a class="button button-secondary" href="{% url 'submit_request' %}">Submit a request</a>
+                </div>
+            {% endif %}
+        {% else %}
+            <h1 id="welcome-title">Blood Bank Management System</h1>
+            <p class="lead">Find available blood, manage donations, and coordinate requests in one place.</p>
+            <div class="action-list">
+                <a class="button" href="{% url 'login' %}">Log in</a>
+                <a class="button button-secondary" href="{% url 'register' %}">Create a donor account</a>
+            </div>
         {% endif %}
-
-        {% if user.role == "STAFF" or user.role == "ADMIN" %}
-            <p><a href="{% url 'donor_list' %}">View Donors</a></p>
-            <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
-            <p><a href="{% url 'inventory' %}">View Blood Inventory</a></p>
-            <p><a href="{% url 'my_requests' %}">Review Blood Requests</a></p>
-            <p><a href="{% url 'alerts' %}">Inventory Alerts</a></p>
-            <p><a href="{% url 'reports' %}">Reports</a></p>
-        {% endif %}
-
-        {% if user.role == "ADMIN" %}
-            <p><a href="{% url 'audit_log' %}">Audit Log</a></p>
-        {% endif %}
-
-        {% if user.role == "REQUESTER" %}
-            <p><a href="{% url 'inventory' %}">Search Blood Availability</a></p>
-            <p><a href="{% url 'submit_request' %}">Submit Blood Request</a></p>
-            <p><a href="{% url 'my_requests' %}">My Requests</a></p>
-        {% endif %}
-
-        <form method="post" action="{% url 'logout' %}">
-            {% csrf_token %}
-            <button type="submit">Logout</button>
-        </form>
-    {% else %}
-        <p><a href="{% url 'register' %}">Register</a></p>
-        <p><a href="{% url 'login' %}">Login</a></p>
-    {% endif %}
-</body>
-</html>
+    </section>
+{% endblock %}

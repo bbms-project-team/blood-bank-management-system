@@ -1,98 +1,91 @@
+{% extends "base.html" %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Blood Inventory | BBMS</title>
-</head>
-<body>
-    <h1>Blood Inventory</h1>
+{% block title %}Blood inventory{% endblock %}
 
-    <p>Available: {{ counts.available }}</p>
-    <p>Reserved: {{ counts.reserved }}</p>
-    <p>Issued: {{ counts.issued }}</p>
-    <p>Past expiry date: {{ counts.expired }}</p>
+{% block content %}
+    <h1>Blood inventory</h1>
+    <section class="stats-grid" aria-label="Inventory totals">
+        <div class="stat-card"><span>Available</span><strong>{{ counts.available }}</strong></div>
+        <div class="stat-card"><span>Reserved</span><strong>{{ counts.reserved }}</strong></div>
+        <div class="stat-card"><span>Issued</span><strong>{{ counts.issued }}</strong></div>
+        <div class="stat-card"><span>Past expiry date</span><strong>{{ counts.expired }}</strong></div>
+    </section>
 
-    <h2>Search Available Blood</h2>
+    <section aria-labelledby="search-title">
+        <h2 id="search-title">Search available blood</h2>
+        <form class="panel filter-form" method="get" role="search">
+            <div class="data-grid">
+                <div>
+                    <label for="blood_group">Blood group</label>
+                    <select name="blood_group" id="blood_group">
+                        <option value="">All groups</option>
+                        {% for value, label in blood_groups %}
+                            <option value="{{ value }}" {% if selected_blood_group == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="component">Component</label>
+                    <select name="component" id="component">
+                        <option value="">All components</option>
+                        {% for value, label in components %}
+                            <option value="{{ value }}" {% if selected_component == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="location">Location</label>
+                    <input type="text" name="location" id="location" value="{{ selected_location }}" autocomplete="address-level2">
+                </div>
+            </div>
+            <div class="inline-actions">
+                <button type="submit">Search</button>
+                <a class="button button-secondary" href="{% url 'inventory' %}">Clear filters</a>
+            </div>
+        </form>
+    </section>
 
-    <form method="get">
-        <label for="blood_group">Blood group:</label>
-        <select name="blood_group" id="blood_group">
-            <option value="">All groups</option>
-            {% for value, label in blood_groups %}
-                <option value="{{ value }}"
-                    {% if selected_blood_group == value %}selected{% endif %}>
-                    {{ label }}
-                </option>
-            {% endfor %}
-        </select>
-
-        <label for="component">Component:</label>
-        <select name="component" id="component">
-            <option value="">All components</option>
-            {% for value, label in components %}
-                <option value="{{ value }}"
-                    {% if selected_component == value %}selected{% endif %}>
-                    {{ label }}
-                </option>
-            {% endfor %}
-        </select>
-
-        <label for="location">Location:</label>
-        <input
-            type="text"
-            name="location"
-            id="location"
-            value="{{ selected_location }}"
-            placeholder="Enter blood bank location"
-        >
-
-        <button type="submit">Search</button>
-        <a href="{% url 'inventory' %}">Clear filters</a>
-    </form>
-
-    <h2>Available Matching Units</h2>
-
-    <table border="1" cellpadding="6">
-        <thead>
-            <tr>
-                <th>Unit Code</th>
-                <th>Blood Group</th>
-                <th>Component</th>
-                <th>Location</th>
-                <th>Donation Date</th>
-                <th>Expiry Date</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for unit in units %}
-                <tr>
-                    <td>{{ unit.unit_code }}</td>
-                    <td>{{ unit.donation.blood_group }}</td>
-                    <td>{{ unit.donation.get_component_display }}</td>
-                    <td>{{ unit.location }}</td>
-                    <td>{{ unit.donation.donation_date }}</td>
-                    <td>{{ unit.expiry_date }}</td>
-                    <td>{{ unit.get_status_display }}</td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="7">No available matching units found.</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
+    <section aria-labelledby="results-title">
+        <h2 id="results-title">Available matching units</h2>
+        <div class="table-scroll" role="region" aria-label="Available inventory results" tabindex="0">
+            <table>
+                <caption>Available, unexpired blood units matching your filters</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">Unit code</th>
+                        <th scope="col">Blood group</th>
+                        <th scope="col">Component</th>
+                        <th scope="col">Location</th>
+                        <th scope="col">Donation date</th>
+                        <th scope="col">Expiry date</th>
+                        <th scope="col">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for unit in units %}
+                        <tr>
+                            <td>{{ unit.unit_code }}</td>
+                            <td>{{ unit.donation.blood_group }}</td>
+                            <td>{{ unit.donation.get_component_display }}</td>
+                            <td>{{ unit.location }}</td>
+                            <td>{{ unit.donation.donation_date }}</td>
+                            <td>{{ unit.expiry_date }}</td>
+                            <td>{{ unit.get_status_display }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="7">No available matching units found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
     {% if user.role == "STAFF" or user.role == "ADMIN" %}
-        <p><a href="{% url 'record_donation' %}">Record Donation</a></p>
-        <p><a href="{% url 'alerts' %}">Inventory alerts</a></p>
-        <p><a href="{% url 'reports' %}">Reports</a></p>
+        <div class="action-list">
+            <a class="button" href="{% url 'record_donation' %}">Record donation</a>
+            <a class="button button-secondary" href="{% url 'alerts' %}">Inventory alerts</a>
+            <a class="button button-secondary" href="{% url 'reports' %}">Reports</a>
+        </div>
+    {% elif user.role == "REQUESTER" %}
+        <div class="action-list"><a class="button" href="{% url 'submit_request' %}">Submit blood request</a></div>
     {% endif %}
-    {% if user.role == "REQUESTER" %}
-        <p><a href="{% url 'submit_request' %}">Submit blood request</a></p>
-    {% endif %}
-    <p><a href="{% url 'home' %}">Home</a></p>
-</body>
-</html>
+{% endblock %}
