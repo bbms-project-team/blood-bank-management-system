@@ -19,13 +19,34 @@ from .services import issue_request as issue_request_service
 
 @role_required(User.Role.REQUESTER, User.Role.ADMIN)
 def submit_request(request):
+    """
+    Allow only authorized requesters and administrators
+    to submit valid blood requests.
+    """
     if request.method == "POST":
         form = BloodRequestForm(request.POST)
 
         if form.is_valid():
-            blood_request = form.save(commit=False)
-            blood_request.requester = request.user
-            blood_request.save()
+            with transaction.atomic():
+                blood_request = form.save(commit=False)
+
+                # Always assign the logged-in user.
+                # Never accept requester identity from form input.
+                blood_request.requester = request.user
+                blood_request.status = BloodRequest.Status.PENDING
+                blood_request.save()
+
+                AuditLog.objects.create(
+                    actor=request.user,
+                    action="REQUEST_SUBMITTED",
+                    object_type="BloodRequest",
+                    object_id=str(blood_request.request_id),
+                    details={
+                        "blood_group": blood_request.blood_group,
+                        "component": blood_request.component,
+                        "units_required": blood_request.units_required,
+                    },
+                )
 
             messages.success(
                 request,
@@ -33,6 +54,7 @@ def submit_request(request):
                 f"Request ID: {blood_request.request_id}",
             )
             return redirect("my_requests")
+
     else:
         form = BloodRequestForm()
 
@@ -73,15 +95,18 @@ def my_requests(request):
 def mark_notification_read(request, notification_id):
     if request.method != "POST":
         return redirect("my_requests")
+
     updated = RequestNotification.objects.filter(
         pk=notification_id,
         recipient=request.user,
         read_at__isnull=True,
     ).update(read_at=timezone.now())
+
     if updated:
         messages.success(request, "Notification marked as read.")
     else:
         messages.error(request, "Notification not found or already read.")
+
     return redirect("my_requests")
 
 
@@ -118,15 +143,21 @@ def decide_request(request, request_id):
                 decision_by=request.user,
                 decision_at=timezone.now(),
             )
+
             if updated != 1:
-                messages.error(request, "This request has already been decided.")
+                messages.error(
+                    request,
+                    "This request has already been decided.",
+                )
                 return redirect("my_requests")
+
             AuditLog.objects.create(
                 actor=request.user,
                 action=f"REQUEST_{decision}",
                 object_type="BloodRequest",
                 object_id=str(blood_request.request_id),
             )
+
             RequestNotification.objects.create(
                 request=blood_request,
                 recipient=blood_request.requester,
@@ -146,12 +177,14 @@ def decide_request(request, request_id):
 def reserve_request(request, request_id):
     if request.method != "POST":
         return redirect("my_requests")
+
     try:
         reserve_request_service(request_id, request.user)
     except (BloodRequest.DoesNotExist, WorkflowError) as exc:
         messages.error(request, str(exc) or "Request was not found.")
     else:
         messages.success(request, "Matching units reserved for this request.")
+
     return redirect("my_requests")
 
 
@@ -159,12 +192,14 @@ def reserve_request(request, request_id):
 def issue_request(request, request_id):
     if request.method != "POST":
         return redirect("my_requests")
+
     try:
         issue_request_service(request_id, request.user)
     except (BloodRequest.DoesNotExist, WorkflowError) as exc:
         messages.error(request, str(exc) or "Request was not found.")
     else:
         messages.success(request, "Reserved units issued and request completed.")
+
     return redirect("my_requests")
 
 
@@ -176,16 +211,21 @@ def alerts(request):
     today = timezone.localdate()
     soon = today + timedelta(days=7)
     threshold = getattr(settings, "BBMS_LOW_STOCK_THRESHOLD", 5)
+
     available = BloodUnit.objects.filter(
         status="AVAILABLE",
         expiry_date__gte=today,
         donation__accepted=True,
     )
+
     grouped_stock = {
         (row["donation__blood_group"], row["donation__component"]): row["units"]
-        for row in available.values("donation__blood_group", "donation__component")
-        .annotate(units=Count("pk"))
+        for row in available.values(
+            "donation__blood_group",
+            "donation__component",
+        ).annotate(units=Count("pk"))
     }
+
     stock = [
         {
             "donation__blood_group": blood_group,
@@ -196,6 +236,7 @@ def alerts(request):
         for component, _ in Donation.COMPONENTS
         if grouped_stock.get((blood_group, component), 0) < threshold
     ]
+
     stock = sorted(
         stock,
         key=lambda item: (
@@ -203,20 +244,27 @@ def alerts(request):
             item["donation__component"],
         ),
     )
+
     expiring = BloodUnit.objects.filter(
         status__in=["AVAILABLE", "RESERVED"],
         expiry_date__range=(today, soon),
     ).select_related("donation")
+
     expired = BloodUnit.objects.filter(
         status__in=["AVAILABLE", "RESERVED"],
         expiry_date__lt=today,
     ).select_related("donation")
-    return render(request, "bloodbank_requests/alerts.html", {
-        "stock_alerts": stock,
-        "expiring_units": expiring,
-        "expired_units": expired,
-        "threshold": threshold,
-    })
+
+    return render(
+        request,
+        "bloodbank_requests/alerts.html",
+        {
+            "stock_alerts": stock,
+            "expiring_units": expiring,
+            "expired_units": expired,
+            "threshold": threshold,
+        },
+    )
 
 
 @role_required(User.Role.STAFF, User.Role.ADMIN)
@@ -224,20 +272,33 @@ def reports(request):
     from donations.models import BloodUnit, Donation
 
     today = timezone.localdate()
-    return render(request, "bloodbank_requests/reports.html", {
-        "donation_count": Donation.objects.filter(accepted=True).count(),
-        "requests_by_status": BloodRequest.objects.values("status")
-            .annotate(total=Count("pk")).order_by("status"),
-        "units_by_status": BloodUnit.objects.values("status")
-            .annotate(total=Count("pk")).order_by("status"),
-        "available_units": BloodUnit.objects.filter(
-            status="AVAILABLE", expiry_date__gte=today,
-            donation__accepted=True,
-        ).count(),
-    })
+
+    return render(
+        request,
+        "bloodbank_requests/reports.html",
+        {
+            "donation_count": Donation.objects.filter(accepted=True).count(),
+            "requests_by_status": BloodRequest.objects.values("status")
+            .annotate(total=Count("pk"))
+            .order_by("status"),
+            "units_by_status": BloodUnit.objects.values("status")
+            .annotate(total=Count("pk"))
+            .order_by("status"),
+            "available_units": BloodUnit.objects.filter(
+                status="AVAILABLE",
+                expiry_date__gte=today,
+                donation__accepted=True,
+            ).count(),
+        },
+    )
 
 
 @role_required(User.Role.ADMIN)
 def audit_log(request):
     events = AuditLog.objects.select_related("actor")[:200]
-    return render(request, "bloodbank_requests/audit_log.html", {"events": events})
+
+    return render(
+        request,
+        "bloodbank_requests/audit_log.html",
+        {"events": events},
+    )
