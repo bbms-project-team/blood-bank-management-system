@@ -70,14 +70,27 @@ def submit_request(request):
     User.Role.REQUESTER,
     User.Role.STAFF,
     User.Role.ADMIN,
+    User.Role.INVENTORY,
 )
 def my_requests(request):
+    from donations.models import BloodUnit
+
     if request.user.role == User.Role.REQUESTER:
         requests = BloodRequest.objects.filter(
             requester=request.user
         ).order_by("-created_at")
     else:
         requests = BloodRequest.objects.all().order_by("-created_at")
+
+    requests = list(requests)
+    today = timezone.localdate()
+    stock_rows = BloodUnit.objects.filter(
+        status="AVAILABLE", processing_status="TESTED", expiry_date__gte=today,
+        donation__accepted=True,
+    ).values("donation__blood_group", "donation__component").annotate(total=Count("pk"))
+    available = {(row["donation__blood_group"], row["donation__component"]): row["total"] for row in stock_rows}
+    for item in requests:
+        item.compatible_available_units = available.get((item.blood_group, item.component), 0)
 
     return render(
         request,
@@ -108,7 +121,7 @@ def mark_notification_read(request, notification_id):
     return redirect("my_requests")
 
 
-@role_required(User.Role.STAFF, User.Role.ADMIN)
+@role_required(User.Role.STAFF, User.Role.ADMIN, User.Role.INVENTORY)
 def decide_request(request, request_id):
     try:
         blood_request = BloodRequest.objects.get(request_id=request_id)
@@ -190,7 +203,7 @@ def decide_request(request, request_id):
     return redirect("my_requests")
 
 
-@role_required(User.Role.STAFF, User.Role.ADMIN)
+@role_required(User.Role.STAFF, User.Role.ADMIN, User.Role.INVENTORY)
 def reserve_request(request, request_id):
     if request.method != "POST":
         return _workflow_error(
@@ -215,7 +228,7 @@ def reserve_request(request, request_id):
     return redirect("my_requests")
 
 
-@role_required(User.Role.STAFF, User.Role.ADMIN)
+@role_required(User.Role.STAFF, User.Role.ADMIN, User.Role.INVENTORY)
 def issue_request(request, request_id):
     if request.method != "POST":
         return _workflow_error(
@@ -240,7 +253,7 @@ def issue_request(request, request_id):
     return redirect("my_requests")
 
 
-@role_required(User.Role.STAFF, User.Role.ADMIN)
+@role_required(User.Role.STAFF, User.Role.ADMIN, User.Role.INVENTORY)
 def alerts(request):
     from donations.models import BloodUnit, Donation
     from donors.models import DonorProfile
@@ -291,7 +304,7 @@ def alerts(request):
     })
 
 
-@role_required(User.Role.STAFF, User.Role.ADMIN)
+@role_required(User.Role.STAFF, User.Role.ADMIN, User.Role.INVENTORY)
 def reports(request):
     from donations.models import BloodUnit, Donation
 

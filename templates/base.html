@@ -20,16 +20,37 @@
             </a>
             <nav class="site-nav" aria-label="Main navigation">
                 {% if user.is_authenticated %}
-                    {% if user.role == "DONOR" %}
-                        <a href="{% url 'my_profile' %}">My profile</a>
-                    {% endif %}
                     {% if user.role == "STAFF" or user.role == "ADMIN" %}
-                        <a href="{% url 'donor_list' %}">Donors</a>
+                        <a href="{% url 'reception_dashboard' %}">Dashboard</a>
+                        <a href="{% url 'reception_donors' %}">Donors</a>
+                        <a href="{% url 'appointment_list' %}">Appointments</a>
+                        <a href="{% url 'manage_donation_slots' %}">Donation slots</a>
                         <a href="{% url 'record_donation' %}">Record donation</a>
                         <a href="{% url 'inventory' %}">Inventory</a>
                         <a href="{% url 'my_requests' %}">Requests</a>
                         <a href="{% url 'alerts' %}">Alerts</a>
                         <a href="{% url 'reports' %}">Reports</a>
+                    {% endif %}
+                    {% if user.role == "RECEPTIONIST" %}
+                        <a href="{% url 'reception_dashboard' %}">Dashboard</a>
+                        <a href="{% url 'reception_donors' %}">Donors</a>
+                        <a href="{% url 'appointment_list' %}">Appointments</a>
+                        <a href="{% url 'manage_donation_slots' %}">Donation slots</a>
+                    {% endif %}
+                    {% if user.role == "MEDICAL" %}
+                        <a href="{% url 'appointment_list' %}">Appointments</a>
+                        <a href="{% url 'record_donation' %}">Record donation</a>
+                    {% endif %}
+                    {% if user.role == "INVENTORY" %}
+                        <a href="{% url 'inventory' %}">Inventory</a>
+                        <a href="{% url 'my_requests' %}">Requests</a>
+                        <a href="{% url 'alerts' %}">Alerts</a>
+                        <a href="{% url 'reports' %}">Reports</a>
+                    {% endif %}
+                    {% if user.role == "DONOR" %}
+                        <a href="{% url 'donor_dashboard' %}">My dashboard</a>
+                        <a href="{% url 'my_profile' %}">My profile</a>
+                        <a href="{% url 'book_donation' %}">Book donation</a>
                     {% endif %}
                     {% if user.role == "ADMIN" %}
                         <a href="{% url 'audit_log' %}">Audit log</a>

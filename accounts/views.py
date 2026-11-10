@@ -3,14 +3,25 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError, connection
 from django.http import HttpResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from .forms import RegistrationForm, UserProfileForm
+from .forms import EmailAuthenticationForm, RegistrationForm, UserProfileForm
+
+
+def role_home(user):
+    if user.role == user.Role.DONOR:
+        return redirect("donor_dashboard")
+    if user.role in (user.Role.ADMIN, user.Role.STAFF, user.Role.RECEPTIONIST):
+        return redirect("reception_dashboard")
+    if user.role == user.Role.MEDICAL:
+        return redirect("appointment_list")
+    if user.role == user.Role.INVENTORY:
+        return redirect("inventory")
+    return redirect("home")
 
 
 def register(request):
@@ -24,7 +35,7 @@ def register(request):
 
             login(request, user)
             messages.success(request, "Your account was created successfully.")
-            return redirect("home")
+            return role_home(user)
     else:
         form = RegistrationForm()
 
@@ -32,6 +43,13 @@ def register(request):
 
 
 def home(request):
+    if request.user.is_authenticated:
+        if request.user.role == request.user.Role.DONOR:
+            return redirect("donor_dashboard")
+        if request.user.role in (request.user.Role.ADMIN, request.user.Role.STAFF, request.user.Role.RECEPTIONIST):
+            return redirect("reception_dashboard")
+        if request.user.role == request.user.Role.MEDICAL:
+            return redirect("appointment_list")
     return render(request, "home.html")
 
 
@@ -64,15 +82,15 @@ def health_check(request):
 
 def user_login(request):
     if request.method == "POST":
-        form = AuthenticationForm(request, data=request.POST)
+        form = EmailAuthenticationForm(request, data=request.POST)
 
         if form.is_valid():
             user = form.get_user()
             login(request, user)
             messages.success(request, "You have logged in successfully.")
-            return redirect("home")
+            return role_home(user)
     else:
-        form = AuthenticationForm(request)
+        form = EmailAuthenticationForm(request)
 
     return render(request, "accounts/login.html", {"form": form})
 

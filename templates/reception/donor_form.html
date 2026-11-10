@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Register donor{% endblock %}{% block content %}
+<h1>{% if editing %}Edit donor profile{% else %}Register a walk-in donor{% endif %}</h1><p class="lead">{% if editing %}Update contact and donor profile information. Changes are recorded in the audit log.{% else %}An account and donor profile will be created together. Existing email and phone numbers are checked to avoid duplicates.{% endif %}</p>
+<form method="post" class="panel form-panel">{% csrf_token %}{% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+{% for field in form %}<div class="form-row"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}
+<button type="submit">{% if editing %}Save donor changes{% else %}Create donor and continue{% endif %}</button></form>{% endblock %}

@@ -1,6 +1,7 @@
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm
 from .models import User
 
 
@@ -32,3 +33,18 @@ class UserProfileForm(forms.ModelForm):
                 "An account with this email already exists."
             )
         return email
+
+
+class EmailAuthenticationForm(AuthenticationForm):
+    username = forms.CharField(
+        label="Email address (or username)",
+        widget=forms.TextInput(attrs={"autocomplete": "username", "placeholder": "you@example.com"}),
+    )
+
+    def clean(self):
+        login_id = self.cleaned_data.get("username", "").strip()
+        if "@" in login_id:
+            match = User.objects.filter(email__iexact=login_id).only("username").first()
+            if match:
+                self.cleaned_data["username"] = match.get_username()
+        return super().clean()

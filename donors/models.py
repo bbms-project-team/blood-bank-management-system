@@ -8,6 +8,7 @@ from config.domain import BLOOD_GROUPS
 
 class DonorProfile(models.Model):
     BLOOD_GROUPS = BLOOD_GROUPS
+    GENDER_CHOICES = [("F", "Female"), ("M", "Male"), ("X", "Another identity"), ("N", "Prefer not to say")]
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -15,6 +16,8 @@ class DonorProfile(models.Model):
         related_name="donor_profile",
     )
     phone = models.CharField(max_length=15)
+    emergency_contact = models.CharField(max_length=150, blank=True)
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True)
     date_of_birth = models.DateField()
     address = models.TextField()
     blood_group = models.CharField(

@@ -178,3 +178,25 @@ tbody tr:last-child td { border-bottom: 0; }
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+/* Reception and donor workspaces */
+.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr); gap: 1rem; margin-block: 1rem; }
+.dashboard-columns .panel { min-width: 0; }
+.stock-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: .45rem; }
+.stock-list div { display: flex; justify-content: space-between; gap: .35rem; padding: .5rem; border-radius: .4rem; background: var(--brand-soft); }
+.filter-form { display: flex; align-items: end; flex-wrap: wrap; gap: .7rem; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: .7rem; background: var(--surface); }
+.filter-form label { font-weight: 650; }
+.filter-form input, .filter-form select { min-height: 44px; padding: .5rem; border: 1px solid #929aa6; border-radius: .35rem; font: inherit; }
+.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap table { width: 100%; border-collapse: collapse; }
+.table-wrap th, .table-wrap td { padding: .7rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.table-wrap th { background: #f5f6f8; white-space: nowrap; }
+.status { display: inline-block; padding: .18rem .5rem; border-radius: 2rem; background: var(--brand-soft); font-size: .88rem; white-space: nowrap; }
+.form-panel { max-width: 700px; display: grid; gap: .9rem; }
+.form-row { display: grid; gap: .3rem; }
+.form-row label { font-weight: 650; }
+.form-row input, .form-row select, .form-row textarea, .inline-action textarea { width: 100%; min-height: 44px; padding: .55rem; border: 1px solid #929aa6; border-radius: .35rem; background: #fff; font: inherit; }
+.form-row ul.errorlist, .form-errors { color: var(--error); margin: 0; }
+.inline-action { min-width: 11rem; display: flex; flex-wrap: wrap; gap: .35rem; }
+.inline-action button { min-height: 36px; padding: .4rem .6rem; font-size: .88rem; }
+.inline-action textarea { min-width: 160px; min-height: 44px; }
+@media (max-width: 760px) { .dashboard-columns { grid-template-columns: 1fr; } }
