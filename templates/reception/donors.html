@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Donors{% endblock %}{% block content %}
+<div class="page-heading"><h1>Donor directory</h1><p>Find donors by name, email, phone, username or donor ID.</p></div>
+<form method="get" class="filter-form"><label for="q">Search donors</label><input id="q" name="q" value="{{ query }}" placeholder="Name, email, phone or ID"><button>Search</button><a class="button button-secondary" href="{% url 'reception_donor_create' %}">Register walk-in</a></form>
+<div class="table-wrap panel"><table><thead><tr><th>Donor ID</th><th>Name</th><th>Blood group</th><th>Phone</th><th>Email</th><th>Visits</th></tr></thead><tbody>{% for donor in donors %}<tr><td><a href="{% url 'reception_donor_detail' donor.pk %}">D-{{ donor.pk }}</a></td><td>{{ donor.user.get_full_name|default:donor.user.username }}</td><td>{{ donor.blood_group }}</td><td>{{ donor.phone }}</td><td>{{ donor.user.email }}</td><td>{{ donor.bookings.count }}</td></tr>{% empty %}<tr><td colspan="6">No matching donors.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

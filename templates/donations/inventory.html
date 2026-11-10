@@ -43,6 +43,16 @@
                 <a class="button button-secondary" href="{% url 'inventory' %}">Clear filters</a>
             </div>
         </form>
+
+    {% if quarantined_units %}
+        <section class="panel">
+            <h2>Awaiting processing and testing</h2>
+            <p>These units are quarantined and cannot be issued until authorized staff record a clear test result.</p>
+            <div class="table-wrap"><table><thead><tr><th>Unit</th><th>Group</th><th>Collected</th><th>Testing status</th><th>Action</th></tr></thead><tbody>
+            {% for unit in quarantined_units %}<tr><td>{{ unit.unit_code|truncatechars:14 }}</td><td>{{ unit.donation.blood_group }}</td><td>{{ unit.donation.donation_date }}</td><td>{{ unit.get_processing_status_display }}</td><td><form method="post" action="{% url 'process_blood_unit' unit.pk %}" class="inline-action">{% csrf_token %}<button name="result" value="TESTED">Clear tests</button><button class="button-secondary" name="result" value="FAILED">Mark failed</button></form></td></tr>{% endfor %}
+            </tbody></table></div>
+        </section>
+    {% endif %}
     </section>
 
     <section aria-labelledby="results-title">

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Reception dashboard{% endblock %}
+{% block content %}
+<div class="page-heading"><h1>Reception dashboard</h1><p class="lead">Today's operations and blood stock at a glance.</p></div>
+<div class="action-list"><a class="button" href="{% url 'reception_donor_create' %}">Register walk-in donor</a><a class="button button-secondary" href="{% url 'schedule_appointment' %}">Schedule appointment</a><a class="button button-secondary" href="{% url 'appointment_list' %}">Manage appointments</a><a class="button button-secondary" href="{% url 'manage_donation_slots' %}">Manage donation slots</a></div>
+<section class="stats-grid" aria-label="Operational statistics">
+<article class="stat-card"><span>Registered donors</span><strong>{{ donor_count }}</strong></article>
+<article class="stat-card"><span>Appointments today</span><strong>{{ today_count }}</strong></article>
+<article class="stat-card"><span>Pending appointments</span><strong>{{ pending_count }}</strong></article>
+<article class="stat-card"><span>Completed donations</span><strong>{{ completed_count }}</strong></article>
+<article class="stat-card"><span>Cancelled / missed</span><strong>{{ cancelled_count }}</strong></article>
+<article class="stat-card"><span>Tested available units</span><strong>{{ unit_count }}</strong></article>
+</section>
+<div class="dashboard-columns">
+<section class="panel"><h2>Today's queue</h2><div class="table-wrap"><table><thead><tr><th>Time</th><th>Donor</th><th>Location</th><th>Status</th></tr></thead><tbody>
+{% for item in today_appointments %}<tr><td>{{ item.slot.starts_at|date:"H:i" }}</td><td><a href="{% url 'reception_donor_detail' item.donor_id %}">{{ item.donor.user.get_full_name|default:item.donor.user.username }}</a></td><td>{{ item.slot.location }}</td><td><span class="status">{{ item.get_status_display }}</span></td></tr>{% empty %}<tr><td colspan="4">No appointments scheduled for today.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="panel"><h2>Available inventory by blood group</h2><div class="stock-list">{% for row in stock_by_group %}<div><span>{{ row.group }}</span><strong>{{ row.count }}</strong></div>{% endfor %}</div><h3>Units nearing expiry</h3>{% for unit in expiring_units %}<p>{{ unit.donation.blood_group }} · {{ unit.unit_code|truncatechars:14 }} · expires {{ unit.expiry_date }}</p>{% empty %}<p>No tested units expire in the next seven days.</p>{% endfor %}</section>
+</div>
+<div class="dashboard-columns">
+<section class="panel"><h2>Recent donor registrations</h2>{% for donor in recent_donors %}<p><a href="{% url 'reception_donor_detail' donor.pk %}">{{ donor.user.get_full_name|default:donor.user.username }}</a> · {{ donor.blood_group }} · {{ donor.phone }}</p>{% empty %}<p>No donor registrations yet.</p>{% endfor %}</section>
+<section class="panel"><h2>Recent activity</h2>{% for event in recent_activity %}<p>{{ event.get_action_display|default:event.action }} · {{ event.object_type }} {{ event.object_id }} · {{ event.created_at|date:"M j, H:i" }}{% if event.actor %} · {{ event.actor.username }}{% endif %}</p>{% empty %}<p>No administrative activity yet.</p>{% endfor %}</section>
+</div>
+{% endblock %}

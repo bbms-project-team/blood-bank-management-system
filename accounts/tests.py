@@ -2,10 +2,13 @@
 from django.contrib.admin.models import ADDITION, LogEntry
 from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
+from django.db import DatabaseError
 from django.test import TestCase
 from django.urls import reverse
+from unittest.mock import patch
 
 from accounts.models import User
+from accounts.views import role_home
 
 
 class AccountsTests(TestCase):
@@ -29,6 +32,71 @@ class AccountsTests(TestCase):
         response = self.client.get(reverse("home"))
         self.assertEqual(response.status_code, 200)
 
+    def test_home_routes_authenticated_roles_to_their_dashboards(self):
+        cases = [
+            (User.Role.DONOR, "donor_dashboard"),
+            (User.Role.STAFF, "reception_dashboard"),
+            (User.Role.ADMIN, "reception_dashboard"),
+            (User.Role.RECEPTIONIST, "reception_dashboard"),
+            (User.Role.MEDICAL, "appointment_list"),
+        ]
+        for index, (role, destination) in enumerate(cases):
+            user = User.objects.create_user(
+                username=f"role_home_{index}", email=f"role{index}@example.com",
+                password="StrongPass123!", role=role,
+            )
+            response = role_home(user)
+            self.assertEqual(response.url, reverse(destination))
+        inventory_user = User.objects.create_user(
+            username="role_home_inventory", email="roleinventory@example.com",
+            password="StrongPass123!", role=User.Role.INVENTORY,
+        )
+        requester = User.objects.create_user(
+            username="role_home_requester", email="rolerequester@example.com",
+            password="StrongPass123!", role=User.Role.REQUESTER,
+        )
+        self.assertEqual(role_home(inventory_user).url, reverse("inventory"))
+        self.assertEqual(role_home(requester).url, reverse("home"))
+
+    def test_home_page_role_redirects_and_fallback(self):
+        for role, expected in (
+            (User.Role.DONOR, "donor_dashboard"),
+            (User.Role.RECEPTIONIST, "reception_dashboard"),
+            (User.Role.MEDICAL, "appointment_list"),
+        ):
+            self.user.role = role
+            self.user.save(update_fields=["role"])
+            self.client.force_login(self.user)
+            response = self.client.get(reverse("home"))
+            self.assertRedirects(response, reverse(expected))
+        self.user.role = User.Role.REQUESTER
+        self.user.save(update_fields=["role"])
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("home")).status_code, 200)
+
+    def test_account_profile_get_update_and_duplicate_email_validation(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("account_profile")).status_code, 200)
+        response = self.client.post(reverse("account_profile"), {
+            "first_name": "Updated", "last_name": "Name", "email": "existing@example.com",
+        })
+        self.assertRedirects(response, reverse("account_profile"))
+        other = User.objects.create_user(
+            username="profile_other", email="other-profile@example.com", password="StrongPass123!",
+        )
+        response = self.client.post(reverse("account_profile"), {
+            "first_name": "Updated", "last_name": "Name", "email": other.email,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.email, "existing@example.com")
+
+    def test_health_check_returns_unavailable_on_database_error(self):
+        with patch("accounts.views.connection.cursor", side_effect=DatabaseError("offline")):
+            response = self.client.get(reverse("health_check"))
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.content, b"unavailable")
+
     def test_registration_page_loads(self):
         response = self.client.get(reverse("register"))
         self.assertEqual(response.status_code, 200)
@@ -39,7 +107,7 @@ class AccountsTests(TestCase):
             self.user_data,
         )
 
-        self.assertRedirects(response, reverse("home"))
+        self.assertRedirects(response, reverse("donor_dashboard"))
 
         registered_user = User.objects.get(username="testuser")
         self.assertEqual(registered_user.email, "test@example.com")
@@ -100,7 +168,7 @@ class AccountsTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("home"))
+        self.assertRedirects(response, reverse("donor_dashboard"))
         self.assertTrue(
             response.wsgi_request.user.is_authenticated
         )
@@ -118,6 +186,28 @@ class AccountsTests(TestCase):
         self.assertFalse(
             response.wsgi_request.user.is_authenticated
         )
+        unknown_email = self.client.post(reverse("login"), {
+            "username": "missing@example.com", "password": "StrongPass123!",
+        })
+        self.assertEqual(unknown_email.status_code, 200)
+
+    def test_user_can_log_in_with_email_address(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "EXISTING@example.com", "password": "StrongPass123!"},
+        )
+        self.assertRedirects(response, reverse("donor_dashboard"))
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_inactive_account_cannot_log_in(self):
+        self.user.is_active = False
+        self.user.save(update_fields=["is_active"])
+        response = self.client.post(
+            reverse("login"),
+            {"username": self.user.email, "password": "StrongPass123!"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
 
     def test_logout_requires_login(self):
         response = self.client.get(reverse("logout"))
@@ -131,6 +221,13 @@ class AccountsTests(TestCase):
 
         self.assertRedirects(response, reverse("home"))
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_authenticated_get_logout_keeps_session_and_redirects_home(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("logout"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("home"))
+        self.assertIn("_auth_user_id", self.client.session)
 
     def test_session_timeout_is_configured(self):
         from django.conf import settings

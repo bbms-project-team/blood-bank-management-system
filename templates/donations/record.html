@@ -5,7 +5,7 @@
 {% block content %}
     <section class="card" aria-labelledby="page-title">
         <h1 id="page-title">Record accepted donation</h1>
-        <p>Recorded donations are added to the blood inventory.</p>
+        <p>Only an appointment marked as donation in progress can be recorded. New units stay quarantined until processing and testing are cleared.</p>
         <form method="post">
             {% csrf_token %}
             {{ form.as_p }}

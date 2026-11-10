@@ -1,8 +1,10 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from unittest.mock import patch, sentinel
 
 from django.db import close_old_connections
+from django.db.utils import OperationalError
 from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -12,6 +14,7 @@ from accounts.models import User
 from bloodbank_requests.models import BloodRequest
 from bloodbank_requests.models import AuditLog, RequestNotification
 from bloodbank_requests.services import WorkflowError, reserve_request, issue_request
+from bloodbank_requests.compatibility import is_blood_compatible
 from donations.models import Donation, BloodUnit
 from donors.models import DonorProfile
 
@@ -80,6 +83,47 @@ class BloodRequestTests(TestCase):
         )
         self.assertIsNotNone(blood_request.request_id)
 
+    def test_compatibility_helper_covers_invalid_inputs_and_exact_match_policy(self):
+        self.assertTrue(is_blood_compatible("A+", "A+", "WHOLE_BLOOD"))
+        self.assertFalse(is_blood_compatible("A+", "B+", "WHOLE_BLOOD"))
+        self.assertFalse(is_blood_compatible("BAD", "A+", "WHOLE_BLOOD"))
+        self.assertFalse(is_blood_compatible("A+", "BAD", "WHOLE_BLOOD"))
+        self.assertFalse(is_blood_compatible("A+", "A+", "INVALID"))
+
+    def test_reservation_retries_transient_database_lock_and_stops_after_limit(self):
+        transient = OperationalError("database is locked")
+        with patch("bloodbank_requests.services.time.sleep") as sleep, patch(
+            "bloodbank_requests.services._reserve_request_once",
+            side_effect=[transient, sentinel.reserved],
+        ) as attempt:
+            self.assertIs(reserve_request("unused", self.staff), sentinel.reserved)
+            self.assertEqual(attempt.call_count, 2)
+            sleep.assert_called_once()
+        with patch("bloodbank_requests.services.time.sleep"), patch(
+            "bloodbank_requests.services._reserve_request_once",
+            side_effect=OperationalError("database is locked"),
+        ) as attempt:
+            with self.assertRaises(WorkflowError):
+                reserve_request("unused", self.staff)
+            self.assertEqual(attempt.call_count, 3)
+
+    def test_issue_retries_transient_database_lock_and_stops_after_limit(self):
+        transient = OperationalError("database is locked")
+        with patch("bloodbank_requests.services.time.sleep") as sleep, patch(
+            "bloodbank_requests.services._issue_request_once",
+            side_effect=[transient, sentinel.issued],
+        ) as attempt:
+            self.assertIs(issue_request("unused", self.staff), sentinel.issued)
+            self.assertEqual(attempt.call_count, 2)
+            sleep.assert_called_once()
+        with patch("bloodbank_requests.services.time.sleep"), patch(
+            "bloodbank_requests.services._issue_request_once",
+            side_effect=OperationalError("database is locked"),
+        ) as attempt:
+            with self.assertRaises(WorkflowError):
+                issue_request("unused", self.staff)
+            self.assertEqual(attempt.call_count, 3)
+
     def test_malformed_request_fields_are_rejected(self):
         self.client.force_login(self.requester)
         invalid_data = self.request_data.copy()
@@ -93,6 +137,26 @@ class BloodRequestTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(BloodRequest.objects.count(), 0)
+
+    def test_request_form_rejects_missing_names_and_zero_units(self):
+        from bloodbank_requests.forms import BloodRequestForm
+        data = self.request_data.copy()
+        data.update({"patient_name": " ", "hospital_name": " ", "units_required": "0"})
+        form = BloodRequestForm(data)
+        self.assertFalse(form.is_valid())
+        self.assertIn("patient_name", form.errors)
+        self.assertIn("hospital_name", form.errors)
+        self.assertIn("units_required", form.errors)
+
+    def test_staff_request_actions_reject_get_methods(self):
+        request = self.create_blood_request()
+        self.client.force_login(self.staff)
+        for name in ("decide_request", "reserve_request", "issue_request"):
+            response = self.client.get(
+                reverse(name, kwargs={"request_id": request.request_id}),
+                HTTP_ACCEPT="text/html",
+            )
+            self.assertRedirects(response, reverse("my_requests"))
 
     def test_staff_can_approve_pending_request(self):
         blood_request = self.create_blood_request()
@@ -238,6 +302,8 @@ class BloodRequestTests(TestCase):
         return BloodUnit.objects.create(
             donation=donation,
             expiry_date=expiry or timezone.localdate() + timedelta(days=10),
+            status="AVAILABLE",
+            processing_status="TESTED",
         )
 
     def approved_request(self, units=1):
@@ -550,6 +616,8 @@ class ConcurrentReservationTests(TransactionTestCase):
         unit = BloodUnit.objects.create(
             donation=donation,
             expiry_date=timezone.localdate() + timedelta(days=10),
+            status="AVAILABLE",
+            processing_status="TESTED",
         )
         barrier = Barrier(2)
 

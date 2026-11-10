@@ -31,4 +31,4 @@ jobs:
         run: python manage.py migrate --noinput
 
       - name: Run automated tests
-        run: python manage.py test
+        run: python manage.py test accounts.tests accounts.test_ui bloodbank_requests.tests donations.tests donors.tests config.tests

@@ -31,6 +31,7 @@
                 <p><strong>Blood group:</strong> {{ item.blood_group }}</p>
                 <p><strong>Component:</strong> {{ item.get_component_display|default:item.component }}</p>
                 <p><strong>Units required:</strong> {{ item.units_required }}</p>
+                {% if user.role != "REQUESTER" %}<p><strong>Compatible available units:</strong> {{ item.compatible_available_units }}{% if item.compatible_available_units < item.units_required %} · insufficient stock{% endif %}</p>{% endif %}
                 <p><strong>Status:</strong> {{ item.get_status_display }}</p>
                 <p><strong>Submitted:</strong> <time datetime="{{ item.created_at|date:'c' }}">{{ item.created_at }}</time></p>
                 {% if item.decision_by %}
@@ -39,7 +40,7 @@
                 {% endif %}
             </div>
 
-            {% if user.role == "STAFF" or user.role == "ADMIN" %}
+            {% if user.role == "STAFF" or user.role == "ADMIN" or user.role == "INVENTORY" %}
                 <div class="inline-actions">
                     {% if item.status == "PENDING" %}
                         <form method="post" action="{% url 'decide_request' item.request_id %}">
