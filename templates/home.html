@@ -1,32 +1,165 @@
 {% extends "base.html" %}
 
-{% block title %}Home{% endblock %}
+{% block title %}Dashboard{% endblock %}
 
 {% block content %}
-    <section class="hero panel" aria-labelledby="welcome-title">
-        {% if user.is_authenticated %}
-            <h1 id="welcome-title">Welcome, {{ user.username }}</h1>
-            <p class="lead">Your blood bank workspace is ready.</p>
-            {% if user.role == "DONOR" %}
-                <div class="action-list"><a class="button" href="{% url 'my_profile' %}">Update donor profile</a></div>
-            {% elif user.role == "STAFF" or user.role == "ADMIN" %}
-                <div class="action-list">
-                    <a class="button" href="{% url 'inventory' %}">Open blood inventory</a>
-                    <a class="button button-secondary" href="{% url 'my_requests' %}">Review requests</a>
-                </div>
-            {% elif user.role == "REQUESTER" %}
-                <div class="action-list">
-                    <a class="button" href="{% url 'inventory' %}">Search blood availability</a>
-                    <a class="button button-secondary" href="{% url 'submit_request' %}">Submit a request</a>
-                </div>
-            {% endif %}
-        {% else %}
-            <h1 id="welcome-title">Blood Bank Management System</h1>
-            <p class="lead">Find available blood, manage donations, and coordinate requests in one place.</p>
+    {% if not user.is_authenticated %}
+        <section class="hero panel" aria-labelledby="welcome-title">
+            <p class="eyebrow">Sprint 2 · Connected blood services</p>
+            <h1 id="welcome-title">One place to coordinate blood donations and requests</h1>
+            <p class="lead">Donors can book eligible donation slots. Hospitals can track requests. Blood bank staff can monitor stock and dispatch matched units.</p>
             <div class="action-list">
-                <a class="button" href="{% url 'login' %}">Log in</a>
-                <a class="button button-secondary" href="{% url 'register' %}">Create a donor account</a>
+                <a class="button" href="{% url 'register' %}">Create a donor account</a>
+                <a class="button button-secondary" href="{% url 'login' %}">Log in</a>
             </div>
-        {% endif %}
-    </section>
+        </section>
+
+        <section class="dashboard-features" aria-labelledby="features-title">
+            <h2 id="features-title">What you can do</h2>
+            <div class="card-grid">
+                <article class="feature-card">
+                    <span class="feature-icon" aria-hidden="true">01</span>
+                    <h3>Book eligible donations</h3>
+                    <p>Update your donor profile, check preliminary eligibility, and reserve an available appointment.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="feature-icon" aria-hidden="true">02</span>
+                    <h3>Follow each blood request</h3>
+                    <p>See request decisions and updates as staff review, reserve, and dispatch matching units.</p>
+                </article>
+                <article class="feature-card">
+                    <span class="feature-icon" aria-hidden="true">03</span>
+                    <h3>Monitor safe inventory</h3>
+                    <p>Staff can review stock, low-inventory alerts, and units approaching their expiry dates.</p>
+                </article>
+            </div>
+        </section>
+    {% elif user.role == "DONOR" %}
+        <section class="dashboard-welcome" aria-labelledby="welcome-title">
+            <p class="eyebrow">Donor dashboard</p>
+            <h1 id="welcome-title">Welcome, {{ user.first_name|default:user.username }}</h1>
+            <p class="lead">Your profile, donation history, and next appointment at a glance.</p>
+        </section>
+        <section class="stats-grid" aria-label="Donor summary">
+            <article class="stat-card">
+                <span>Donor profile</span>
+                <strong>{% if donor_profile %}Complete{% else %}Not set up{% endif %}</strong>
+                <a href="{% url 'my_profile' %}">{% if donor_profile %}Review profile{% else %}Complete profile{% endif %}</a>
+            </article>
+            <article class="stat-card">
+                <span>Accepted donations</span>
+                <strong>{{ donor_donation_count }}</strong>
+                <span class="stat-caption">Recorded by the blood bank</span>
+            </article>
+            <article class="stat-card">
+                <span>Next appointment</span>
+                {% if upcoming_booking %}
+                    <strong>Booked</strong>
+                    <span class="stat-caption">{{ upcoming_booking.slot.starts_at|date:"M j, Y" }} · {{ upcoming_booking.slot.starts_at|time:"g:i A" }}</span>
+                {% else %}
+                    <strong>None yet</strong>
+                    <span class="stat-caption">Choose from available future slots</span>
+                {% endif %}
+            </article>
+        </section>
+        <section class="dashboard-panel panel" aria-labelledby="donor-next-title">
+            {% if donor_profile and donor_eligibility_error %}
+                <h2 id="donor-next-title">Donation booking</h2>
+                <p class="message message-warning" role="status">{{ donor_eligibility_error }}</p>
+                <p>Eligibility shown here is a preliminary check. Blood bank staff complete medical screening at the appointment.</p>
+            {% elif upcoming_booking %}
+                <h2 id="donor-next-title">You’re booked</h2>
+                <p>Your appointment is {{ upcoming_booking.slot.starts_at|date:"l, F j, Y" }} at {{ upcoming_booking.slot.starts_at|time:"g:i A" }}.</p>
+            {% elif donor_profile %}
+                <h2 id="donor-next-title">Ready to book your next donation?</h2>
+                <p>Choose an open appointment slot. Staff will complete the required screening at the blood bank.</p>
+                <a class="button" href="{% url 'book_donation' %}">Find a donation slot</a>
+            {% else %}
+                <h2 id="donor-next-title">Start with your donor profile</h2>
+                <p>Add your blood group and contact details to check appointment eligibility.</p>
+                <a class="button" href="{% url 'my_profile' %}">Set up my profile</a>
+            {% endif %}
+        </section>
+
+    {% elif user.role == "REQUESTER" %}
+        <section class="dashboard-welcome" aria-labelledby="welcome-title">
+            <p class="eyebrow">Hospital dashboard</p>
+            <h1 id="welcome-title">Welcome, {{ user.first_name|default:user.username }}</h1>
+            <p class="lead">Track requests and see the latest blood bank updates.</p>
+        </section>
+        <section class="stats-grid" aria-label="Request summary">
+            <article class="stat-card"><span>Your requests</span><strong>{{ request_total }}</strong><a href="{% url 'my_requests' %}">View request list</a></article>
+            <article class="stat-card"><span>Active requests</span><strong>{{ active_request_total }}</strong><span class="stat-caption">Pending, approved, or reserved</span></article>
+            <article class="stat-card"><span>Unread updates</span><strong>{{ unread_notification_total }}</strong><a href="{% url 'my_requests' %}">Read notifications</a></article>
+            <article class="stat-card"><span>Available units</span><strong>{{ requester_available_units }}</strong><a href="{% url 'inventory' %}">Search inventory</a></article>
+        </section>
+        <div class="dashboard-columns">
+            <section class="panel" aria-labelledby="updates-title">
+                <h2 id="updates-title">Latest updates</h2>
+                {% for notification in recent_notifications %}
+                    <p class="dashboard-list-item"><span class="status-dot" aria-hidden="true"></span>{{ notification.message }} <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at|date:"M j, g:i A" }}</time></p>
+                {% empty %}
+                    <p>No unread updates. New request decisions will appear here.</p>
+                {% endfor %}
+                <a href="{% url 'my_requests' %}">Go to my requests</a>
+            </section>
+            <section class="panel" aria-labelledby="recent-requests-title">
+                <h2 id="recent-requests-title">Recent requests</h2>
+                {% for item in recent_requests %}
+                    <p class="dashboard-list-item"><span>{{ item.hospital_name }}</span><span class="status-pill status-{{ item.status|lower }}">{{ item.get_status_display }}</span></p>
+                {% empty %}
+                    <p>You haven’t submitted a request yet.</p>
+                {% endfor %}
+                <a class="button button-secondary" href="{% url 'submit_request' %}">Submit a blood request</a>
+            </section>
+        </div>
+
+    {% elif user.role == "STAFF" or user.role == "ADMIN" %}
+        <section class="dashboard-welcome" aria-labelledby="welcome-title">
+            <p class="eyebrow">Blood bank operations</p>
+            <h1 id="welcome-title">Good day, {{ user.first_name|default:user.username }}</h1>
+            <p class="lead">Review request activity, available stock, and expiry risk.</p>
+        </section>
+        <section class="stats-grid" aria-label="Operations summary">
+            <article class="stat-card stat-alert"><span>Pending requests</span><strong>{{ staff_pending_requests }}</strong><a href="{% url 'my_requests' %}">Review queue</a></article>
+            <article class="stat-card"><span>Available units</span><strong>{{ staff_available_units }}</strong><a href="{% url 'inventory' %}">Open inventory</a></article>
+            <article class="stat-card"><span>Expiring in 7 days</span><strong>{{ staff_expiring_units }}</strong><a href="{% url 'alerts' %}">Check expiry alerts</a></article>
+            <article class="stat-card {% if staff_expired_units %}stat-alert{% endif %}"><span>Expired, not cleared</span><strong>{{ staff_expired_units }}</strong><a href="{% url 'alerts' %}">Review alerts</a></article>
+        </section>
+        <p class="stat-caption">Low-stock alerts trigger below {{ staff_low_stock_threshold }} available units for a blood group and component.</p>
+        <section class="panel dashboard-panel" aria-labelledby="operations-title">
+            <div class="section-heading">
+                <div>
+                    <h2 id="operations-title">Request pipeline</h2>
+                    <p class="stat-caption">Follow requests from review through dispatch.</p>
+                </div>
+                <a href="{% url 'reports' %}">View reports</a>
+            </div>
+            <div class="pipeline-grid">
+                <div><span>Pending</span><strong>{{ staff_request_totals.PENDING|default:0 }}</strong></div>
+                <div><span>Approved</span><strong>{{ staff_request_totals.APPROVED|default:0 }}</strong></div>
+                <div><span>Reserved</span><strong>{{ staff_request_totals.RESERVED|default:0 }}</strong></div>
+                <div><span>Issued</span><strong>{{ staff_request_totals.ISSUED|default:0 }}</strong></div>
+            </div>
+            <div class="action-list">
+                <a class="button" href="{% url 'my_requests' %}">Manage requests</a>
+                <a class="button button-secondary" href="{% url 'record_donation' %}">Record donation</a>
+                {% if user.role == "ADMIN" %}<a class="button button-secondary" href="{% url 'audit_log' %}">Open audit log</a>{% endif %}
+            </div>
+        </section>
+        <section aria-labelledby="recent-requests-title">
+            <h2 id="recent-requests-title">Latest requests</h2>
+            <div class="card-grid">
+                {% for item in recent_requests %}
+                    <article class="request-card">
+                        <h3>{{ item.hospital_name }}</h3>
+                        <p>{{ item.blood_group }} · {{ item.get_component_display }} · {{ item.units_required }} unit{{ item.units_required|pluralize }}</p>
+                        <p class="request-card-footer"><span class="status-pill status-{{ item.status|lower }}">{{ item.get_status_display }}</span><span>Received {{ item.created_at|date:"M j, Y" }}</span></p>
+                    </article>
+                {% empty %}
+                    <p>No blood requests have been submitted.</p>
+                {% endfor %}
+            </div>
+        </section>
+    {% endif %}
 {% endblock %}

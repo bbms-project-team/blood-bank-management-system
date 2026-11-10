@@ -73,6 +73,13 @@ class ResponsiveAccessibilityTests(TestCase):
             role=User.Role.ADMIN,
         )
 
+    def test_public_home_highlights_sprint_two_workflows(self):
+        response = self.client.get(reverse("home"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Book eligible donations")
+        self.assertContains(response, "Follow each blood request")
+        self.assertContains(response, "Monitor safe inventory")
+
     def test_all_pages_share_responsive_accessible_landmarks(self):
         pages = [
             (None, "home"),
